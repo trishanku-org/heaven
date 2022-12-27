@@ -1,2 +1,2 @@
-# trishanku-controller
-Controller to configure/provision Trishanku controllers
+# Heaven
+A Kubernetes controller to configure/provision `trishankuheavens` for Kubernetes controllers.
