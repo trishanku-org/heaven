@@ -1,0 +1,73 @@
+---
+apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+kind: TrishankuHeaven
+metadata:
+  labels:
+    app.kubernetes.io/name: trishankuheaven
+    app.kubernetes.io/instance: trishankuheaven-sample
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trishanku-controller
+  name: trishankuheaven-sample
+spec:
+  eventsEtcd:
+    local: {}
+  git:
+    credentialsSecretName: git-cred
+    imagePullSecretName: gar-cred
+    branches:
+      local:
+        data: main/data
+        metadata: main/metadata
+    pull:
+      pushAfterMerge: false
+      tickerDuration: 0s
+  controllerUser:
+    userName: system:kube-scheduler
+    groupName: system:kube-scheduler
+    kubeconfigMountPath: /trishanku/kubeconfig
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        from: trishanku
+      labels:
+        from: trishanku
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - name: kube-scheduler
+        image: registry.k8s.io/kube-scheduler:v1.24.4
+        imagePullPolicy: IfNotPresent
+        command:
+        - kube-scheduler
+        - --config=/configs/kube-scheduler-config.yaml
+        - --v=4
+        volumeMounts:
+        - name: configs
+          mountPath: /configs
+      volumes:
+      - name: configs
+        configMap:
+          name: trishankuheaven-sample
+ 
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: trishankuheaven
+    app.kubernetes.io/instance: trishankuheaven-sample
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trishanku-controller
+  name: trishankuheaven-sample
+data:
+  kube-scheduler-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1beta3
+    kind: KubeSchedulerConfiguration
+    clientConnection:
+      kubeconfig: /trishanku/kubeconfig
+    leaderElection:
+      leaderElect: false
+    parallelism: 1
