@@ -180,6 +180,10 @@ type PullRequestSpec struct {
 	// TickerDuration species the ticker duration between automated pull of local changes into remote.
 	// +Required
 	TickerDuration metav1.Duration `json:"tickerDuration"`
+
+	// MergeCommitterName specifies the committer name to use for merge commits.
+	// +Optional
+	MergeCommitterName string `json:"mergeCommitterName,omitempty"`
 }
 
 type ApiserverSpec ImageSpec

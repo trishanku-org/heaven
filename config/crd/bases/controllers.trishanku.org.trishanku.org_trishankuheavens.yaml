@@ -179,6 +179,10 @@ spec:
                         description: ConflictResolutions specifies the conflict resolution
                           policy while pulling local changes into remote.
                         type: string
+                      mergeCommitterName:
+                        description: MergeCommitterName specifies the committer name
+                          to use for merge commits.
+                        type: string
                       pushAfterMerge:
                         description: PushAfterMerge specifies if the local branch
                           must be pushed to remote after merging from remote.

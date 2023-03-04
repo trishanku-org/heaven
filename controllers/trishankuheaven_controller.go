@@ -108,12 +108,14 @@ const (
 	SECRET_KUBECONFIG_CONTROLLER = "controller"
 	CONFIG_ENTRYPOINTS           = "entrypoints"
 	VOLUME_HOME                  = "home"
+	VOLUME_HOME_PR               = "home-pr"
 	VOLUME_TEMP                  = "temp"
 
 	CONTAINER_ETCD       = "etcd"
 	CONTAINER_GIT_PRE    = "git-pre"
 	CONTAINER_GITCD_INIT = "gitcd-init"
 	CONTAINER_GIT_POST   = "git-post"
+	CONTAINER_GIT_PRE_PR = "git-pre-pr"
 	CONTAINER_GITCD      = "gitcd"
 	CONTAINER_GITCD_PR   = "gitcd-pr"
 	CONTAINER_APISERVER  = "apiserver"
@@ -289,12 +291,25 @@ fi
 REPO="${HOME}/repo"
 
 if [ ! -d "$REPO" ]; then
+	function set_head {
+		local BRANCH="$1"
+
+		echo "Setting branch ${BRANCH} as the HEAD."
+		git symbolic-ref HEAD "refs/heads/$BRANCH"
+	}
+
 	function init_data_branch {
 		local BRANCH="$1"
 
 		# Create an empty tree as the base commit if the branch is not pointing to a valid commit.
-		git cat-file -e "$BRANCH" 2> /dev/null \
-			|| git update-ref "refs/heads/$BRANCH" $(git commit-tree -m "init" $(git write-tree))
+		if git cat-file -e "$BRANCH" 2> /dev/null; then
+		 	echo "Reusing existing branch ${BRANCH}."
+			set_head "$BRANCH"
+		else
+			echo "Creating an initial commit for the branch ${BRANCH}."
+			git update-ref "refs/heads/$BRANCH" $(git commit-tree -m "init" $(git write-tree)) \
+				&& set_head "$BRANCH"
+		fi
 	}
 
 	if [ "$GITCD_REMOTE_REPO" == "" ]; then
@@ -304,7 +319,7 @@ if [ ! -d "$REPO" ]; then
 
 		init_data_branch "$GITCD_BRANCH_DATA"
 	else
-		git clone --bare --branch "$GITCD_REMOTE_BRANCH_DATA" "$GITCD_REMOTE_REPO" "$REPO"
+		git clone --bare "$GITCD_REMOTE_REPO" "$REPO"
 
 		cd "$REPO"
 
@@ -319,7 +334,12 @@ if [ ! -d "$REPO" ]; then
 			if  git show-branch "$BRANCH" > /dev/null 2>&1; then
 			  echo "Branch ${BRANCH} already exists."
 			else
-			  git branch "$BRANCH" "${REMOTE_BRANCH}" --no-track
+				if git show-branch "$REMOTE_BRANCH" > /dev/null 2>&1; then
+					echo "Creating branch ${BRANCH} from ${REMOTE_BRANCH}."
+					git branch "${BRANCH}" "${REMOTE_BRANCH}" --no-track
+				else
+					echo "Remote branch ${REMOTE_BRANCH} does not exist. Creating a fresh branch ${BRANCH}."
+				fi
 			fi
 		  
 			git config --add remote.origin.fetch "refs/heads/${REMOTE_BRANCH}:refs/heads/${REMOTE_BRANCH}"
@@ -331,7 +351,7 @@ if [ ! -d "$REPO" ]; then
 
 		init_data_branch "$GITCD_BRANCH_DATA"
 
-		git push
+		[ "$GITCD_PUSH_AFTER_INIT" != "" ] && git push
 	fi
 fi
 `
@@ -379,6 +399,17 @@ func appendMergeFlagsToCommand(c *corev1.Container, mergeFlags map[string]string
 			c.Command = append(c.Command, fmt.Sprintf("%s=%s", f, v))
 		}
 	}
+}
+
+func getCommitterName(heaven *v1alpha1.TrishankuHeaven) string {
+	return heaven.Spec.ControllerUser.UserName
+}
+func getMergeCommitterName(heaven *v1alpha1.TrishankuHeaven) string {
+	if heaven.Spec.Gitcd.PullRequest != nil && len(heaven.Spec.Gitcd.PullRequest.MergeCommitterName) > 0 {
+		return heaven.Spec.Gitcd.PullRequest.MergeCommitterName
+	}
+
+	return getCommitterName(heaven)
 }
 
 func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.TrishankuHeaven) (d *appsv1.Deployment, err error) {
@@ -452,7 +483,7 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 			ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
 			Command:         []string{path.Join(BASE_PATH_ENTRYPOINTS, ENTRYPOINT_GIT_PRE)},
 			Env: []corev1.EnvVar{
-				{Name: "GITCD_COMMITTER_NAME", Value: heaven.Spec.ControllerUser.UserName},
+				{Name: "GITCD_COMMITTER_NAME", Value: getCommitterName(heaven)},
 				{Name: "GITCD_BRANCH_DATA", Value: heaven.Spec.Gitcd.Branches.Local.Data},
 				{Name: "GITCD_BRANCH_METADATA", Value: heaven.Spec.Gitcd.Branches.Local.Metadata},
 				{Name: "GITCD_REMOTE_REPO", Value: heaven.Spec.Gitcd.RemoteRepo},
@@ -494,7 +525,7 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 			"/gitcd",
 			"serve",
 			"--repo=/root/repo",
-			"--committer-name=" + heaven.Spec.ControllerUser.UserName,
+			"--committer-name=" + getCommitterName(heaven),
 			"--data-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Data,
 			"--metadata-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Metadata,
 			"--key-prefixes=default=/registry",
@@ -592,19 +623,52 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 	podSpec.Containers = append(podSpec.Containers, apiserver)
 
 	if heaven.Spec.Gitcd.PullRequest != nil && heaven.Spec.Gitcd.PullRequest.TickerDuration.Duration > 0 {
-		podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
-			Name:            CONTAINER_GIT_POST,
-			Image:           getImage(heaven.Spec.Gitcd.GitImage, r.DefaultGitImage),
-			ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
-			Command: []string{
-				"git",
-				"push",
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
-			},
-			WorkingDir: "/root/repo",
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name:         VOLUME_HOME_PR,
+			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 		})
+
+		podSpec.InitContainers = append(
+			podSpec.InitContainers,
+			corev1.Container{
+				Name:            CONTAINER_GIT_POST,
+				Image:           getImage(heaven.Spec.Gitcd.GitImage, r.DefaultGitImage),
+				ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
+				Command: []string{
+					"git",
+					"push",
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
+				},
+				WorkingDir: "/root/repo",
+			},
+			corev1.Container{
+				Name:            CONTAINER_GIT_PRE_PR,
+				Image:           getImage(heaven.Spec.Gitcd.GitImage, r.DefaultGitImage),
+				ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
+				Command:         []string{path.Join(BASE_PATH_ENTRYPOINTS, ENTRYPOINT_GIT_PRE)},
+				Env: []corev1.EnvVar{
+					{Name: "GITCD_COMMITTER_NAME", Value: getMergeCommitterName(heaven)},
+					{Name: "GITCD_BRANCH_DATA", Value: getRemoteBranchData(heaven)},
+					{Name: "GITCD_BRANCH_METADATA", Value: getRemoteBranchMetadata(heaven)},
+					{Name: "GITCD_REMOTE_REPO", Value: heaven.Spec.Gitcd.RemoteRepo},
+					{Name: "GITCD_REMOTE_BRANCH_DATA", Value: heaven.Spec.Gitcd.Branches.Local.Data},
+					{Name: "GITCD_REMOTE_BRANCH_METADATA", Value: heaven.Spec.Gitcd.Branches.Local.Metadata},
+					{Name: "GITCD_PUSH_AFTER_INIT", Value: "x"},
+				},
+				EnvFrom: []corev1.EnvFromSource{{
+					Prefix: "GIT_CRED_",
+					SecretRef: &corev1.SecretEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: heaven.Spec.Gitcd.CredentialsSecretName},
+					},
+				}},
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: CONFIG_ENTRYPOINTS, MountPath: BASE_PATH_ENTRYPOINTS, ReadOnly: true},
+					{Name: VOLUME_HOME_PR, MountPath: BASE_PATH_HOME},
+				},
+			},
+		)
 
 		gitcdPR = corev1.Container{
 			Name:            CONTAINER_GITCD_PR,
@@ -620,12 +684,12 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 				"--no-fast-forwards=default=false",
 				"--push-after-merges=default=" + strconv.FormatBool(heaven.Spec.Gitcd.PullRequest.PushAfterMerge),
 				"--remote-names=default=origin",
-				"--remote-data-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Remote.Data,
-				"--remote-meta-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Remote.Metadata,
-				"--pull-ticker-duration=" + heaven.Spec.Gitcd.PullRequest.TickerDuration.String(),
+				"--remote-data-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Data,
+				"--remote-meta-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Metadata,
+				"--pull-ticker-duration=" + heaven.Spec.Gitcd.PullRequest.TickerDuration.Duration.String(),
 			},
 			VolumeMounts: []corev1.VolumeMount{
-				{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
+				{Name: VOLUME_HOME_PR, MountPath: BASE_PATH_HOME},
 			},
 		}
 

@@ -15,13 +15,21 @@ spec:
   git:
     credentialsSecretName: git-cred
     imagePullSecretName: gar-cred
+    remoteRepo: https://github.com/amshuman-kr/trishanku-the-hard-way-the-rest
     branches:
       local:
-        data: main/data
-        metadata: main/metadata
+        data: kube-scheduler/data
+        metadata: kube-scheduler/metadata
+      remote:
+        data: upstream/data
+        metadata: upstream/metadata
     pull:
-      pushAfterMerge: false
-      tickerDuration: 0s
+      pushAfterMerge: true
+      tickerDuration: 15s
+    pullRequest:
+      conflictResolutions: default=2
+      pushAfterMerge: true
+      tickerDuration: 25s
   controllerUser:
     userName: system:kube-scheduler
     groupName: system:kube-scheduler
