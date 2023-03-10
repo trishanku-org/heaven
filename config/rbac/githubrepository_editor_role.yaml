@@ -1,0 +1,31 @@
+# permissions for end users to edit githubrepositories.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: githubrepository-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: trishanku-controller
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: githubrepository-editor-role
+rules:
+- apiGroups:
+  - controllers.trishanku.org.trishanku.org
+  resources:
+  - githubrepositories
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - controllers.trishanku.org.trishanku.org
+  resources:
+  - githubrepositories/status
+  verbs:
+  - get

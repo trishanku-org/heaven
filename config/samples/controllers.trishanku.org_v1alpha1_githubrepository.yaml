@@ -1,0 +1,15 @@
+apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+kind: GitHubRepository
+metadata:
+  labels:
+    app.kubernetes.io/name: githubrepository
+    app.kubernetes.io/instance: githubrepository-sample
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trishanku-controller
+  name: githubrepository-sample
+spec:
+  credentialsSecretName: git-cred
+  credentialsSecretTokenKey: PASSWORD
+  description: "Sample GitHub repository."
+  private: true

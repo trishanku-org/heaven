@@ -1,0 +1,27 @@
+# permissions for end users to view githubrepositories.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: githubrepository-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: trishanku-controller
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: githubrepository-viewer-role
+rules:
+- apiGroups:
+  - controllers.trishanku.org.trishanku.org
+  resources:
+  - githubrepositories
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - controllers.trishanku.org.trishanku.org
+  resources:
+  - githubrepositories/status
+  verbs:
+  - get

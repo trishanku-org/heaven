@@ -8,6 +8,32 @@ rules:
 - apiGroups:
   - controllers.trishanku.org.trishanku.org
   resources:
+  - githubrepositories
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - controllers.trishanku.org.trishanku.org
+  resources:
+  - githubrepositories/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - controllers.trishanku.org.trishanku.org
+  resources:
+  - githubrepositories/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - controllers.trishanku.org.trishanku.org
+  resources:
   - trishankuheavens
   verbs:
   - create
