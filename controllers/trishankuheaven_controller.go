@@ -313,13 +313,13 @@ if [ ! -d "$REPO" ]; then
 	}
 
 	if [ "$GITCD_REMOTE_REPO" == "" ]; then
-		git init --bare --initial-branch "$GITCD_BRANCH_DATA" "$REPO"
+		git init --bare --initial-branch "$GITCD_BRANCH_DATA" "$REPO" || exit 1
 
 		cd "$REPO"
 
 		init_data_branch "$GITCD_BRANCH_DATA"
 	else
-		git clone --bare "$GITCD_REMOTE_REPO" "$REPO"
+		git clone --bare "$GITCD_REMOTE_REPO" "$REPO" || exit 1
 
 		cd "$REPO"
 
@@ -330,7 +330,7 @@ if [ ! -d "$REPO" ]; then
 		function prepare_branch {
 			local BRANCH="$1"
 			local REMOTE_BRANCH="$2"
-		  
+	  
 			if  git show-branch "$BRANCH" > /dev/null 2>&1; then
 			  echo "Branch ${BRANCH} already exists."
 			else
@@ -341,7 +341,7 @@ if [ ! -d "$REPO" ]; then
 					echo "Remote branch ${REMOTE_BRANCH} does not exist. Creating a fresh branch ${BRANCH}."
 				fi
 			fi
-		  
+			
 			git config --add remote.origin.fetch "refs/heads/${REMOTE_BRANCH}:refs/heads/${REMOTE_BRANCH}"
 			git config --add remote.origin.push "refs/heads/${BRANCH}:refs/heads/${BRANCH}"
 		}

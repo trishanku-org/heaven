@@ -15,7 +15,7 @@ spec:
   git:
     credentialsSecretName: git-cred
     imagePullSecretName: gar-cred
-    remoteRepo: https://github.com/amshuman-kr/trishanku-the-hard-way-the-rest
+    remoteRepo: https://github.com/amshuman-kr/githubrepository-sample
     branches:
       local:
         data: kube-scheduler/data
