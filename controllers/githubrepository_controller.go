@@ -129,11 +129,14 @@ func (r *GitHubRepositoryReconciler) createRepoIfNotExists(
 		return
 	}
 
-	owner = getRepoOwner(repo, *user.GravatarID)
+	owner = getRepoOwner(repo, *user.Login)
 
 	if _, _, err = c.Repositories.Get(ctx, owner, repo.Name); err == nil {
 		l.Info("GitHub Repository already exists", "owner", owner, "repo", repo)
 		return
+	} else {
+		// TODO exit for all errors except not found error.
+		l.Error(err, "Error getting project", "owner", owner, "repo", repo.Name)
 	}
 
 	_, _, err = c.Repositories.Create(ctx, owner, &github.Repository{

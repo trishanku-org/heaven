@@ -29,46 +29,103 @@ type TrishankuHeavenSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// Skip specifies if some resource generation should be skipped.
+	// +optional
+	Skip SkipSpec `json:"skip"`
+
+	// Certificates specifies the certificates for the TrishankuHeaven.
+	// +optional
+	Certificates CertificatesSpec `json:"certificates"`
+
 	// EventsEtcd specifies the configuration for events etcd.
-	// +Optional
+	// +optional
 	EventsEtcd *EventsEtcdSpec `json:"eventsEtcd,omitempty"`
 
 	// Gitcd specifies the Gitcd configuration.
-	// +Required
-	Gitcd GitcdSpec `json:"git"`
+	// +optional
+	Gitcd *GitcdSpec `json:"gitcd,omitempty"`
 
 	// Apiserver specifies the Apiserver configuration.
-	// +Optional
+	// +optional
 	Apiserver *ApiserverSpec `json:"apiserver,omitempty"`
 
-	// ControllerUser specifies the user details the controller is to be configured to use.
-	// +Required
-	ControllerUser ControllerUserSpec `json:"controllerUser"`
-
-	// Number of desired pods. This is a pointer to distinguish between explicit
-	// zero and not specified. Defaults to 1.
+	// App specifies the app for which the trishanku heaven is to be set up.
 	// +optional
-	Replicas *int32 `json:"replicas,omitempty" protobuf:"varint,1,opt,name=replicas"`
+	App *AppSpec `json:"app"`
+}
 
-	// template specifies the pod template for the controller deployment.
-	// +Required
-	Template PodTemplateSpec `json:"template"`
+// SkipSpec specifies if some resource generation should be skipped.
+type SkipSpec struct {
+	// Certificates specifies if the certificate generation should be skipped.
+	// +optional
+	Cerfificates bool `json:"certificates"`
+
+	// Entrypoints specifies if the entrypoint configmap generation should be skipped.
+	// +optional
+	Entrypoints bool `json:"entrypoints"`
+
+	// App specifies if the app generation should be skipped.
+	// +optional
+	App bool `json:"app"`
+}
+
+// CertificatesSpec specifies the certificates required for the TrishankuHeaven.
+type CertificatesSpec struct {
+	// CertificateAuthoritySecretName specifies the name for the secret containing the CA certificates.
+	// The secret will be generated if not existing. The secret name will be generated if not specified.
+	// +optional
+	CertificateAuthoritySecretName *string `json:"certificateAuthoritySecretName,omitempty"`
+
+	// ServiceAccountsSecretName specifies the name for the secret containing the service-accounts certificates.
+	// The secret will be generated if not existing. The secret name will be generated if not specified.
+	// +optional
+	ServiceAccountsSecretName *string `json:"serviceAccountsSecretName,omitempty"`
+
+	// KubernetesSecretName specifies the name for the secret containing the Kubernetes certificates.
+	// The secret will be generated if not existing. The secret name will be generated if not specified.
+	// +optional
+	KubernetesSecretName *string `json:"kubernetesSecretName,omitempty"`
+
+	// AdminSecretName specifies the name for the secret containing the admin certificates and kubeconfig.
+	// The secret will be generated if not existing. The secret name will be generated if not specified.
+	// +optional
+	AdminSecretName *string `json:"adminSecretName,omitempty"`
+
+	// Controller specifies the configuration for the controller certificates.
+	// No controller certificates are generated if not specified.
+	// This field is mandatory if app is to be deployed (that is, if `SkipSpec.Deploy == false`).
+	// +optional
+	Controller *ControllerCertificateSpec `json:"controller,omitempty"`
+}
+
+type ControllerCertificateSpec struct {
+	// SecretName specifies the name of the scret containing the controller certificates and kubeconfig.
+	// The secret will be generated if not existing. The secret name will be generated if not specified.
+	// +optional
+	SecretName *string `json:"secretName,omitempty"`
+
+	// UserName specifies the user name the controller is to be configured to use.
+	UserName string `json:"userName"`
+
+	// GroupName specifies the group name the controller is to be configured to use.
+	// +optional
+	GroupName string `json:"groupName,omitempty"`
 }
 
 // ImageSpec specifies the image details for a container.
 type ImageSpec struct {
 	// Image specifies the container image.
-	// +Optional
+	// +optional
 	Image *string `json:"image,omitempty"`
 
 	//ImagePullPolicy specifies the image pull policy for the container image.
-	// +Optional
+	// +optional
 	ImagePullPolicy *corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
 type EventsEtcdSpec struct {
 	// ImagePullPolicy specifies the image pull policy for the events etcd container image.
-	// +Optional
+	// +optional
 	Local *EventsEtcdLocalSpec `json:"local,omitempty"`
 }
 
@@ -77,90 +134,87 @@ type EventsEtcdLocalSpec ImageSpec
 // GitcdSpec specifies the configuration for Gitcd
 type GitcdSpec struct {
 	// GitImage specifie the git container image.
-	// +Optional
+	// +optional
 	GitImage *ImageSpec `json:"gitImage,omitempty"`
 
 	// GitcdImage specifie the gitcd container image.
-	// +Optional
+	// +optional
 	GitcdImage *ImageSpec `json:"gitcdImage,omitempty"`
 
 	// CredentialsSecretName specifies the name of the secret containing the .git-credentials file.
-	// +Required
 	CredentialsSecretName string `json:"credentialsSecretName"`
 
 	// ImagePullSecretName specifies the name of the secret containing the credentials to pull gitcd image.
-	// +Optional
+	// +optional
 	ImagePullSecretName string `json:"imagePullSecretName"`
 
 	// RemoteRepo specifies the URL or path to the remote repo for the git repo that will back gitcd.
-	// +Optional
+	// +optional
 	RemoteRepo string `json:"remoteRepo,omitempty"`
 
 	// Branches specifies the local and remote data and metadata branches for gitcd.
-	// +Required
 	Branches BranchesSpec `json:"branches"`
 
 	// Pull specifies the pull configuration for gitcd.
-	// +Required
 	Pull PullSpec `json:"pull"`
 
 	// PullRequest specifies the pull request configuration for gitcd.
-	// *Optional
+	// +optional
 	PullRequest *PullRequestSpec `json:"pullRequest,omitempty"`
 }
 
 // BranchesSpec specifies the local and remote branches for Gitcd
 type BranchesSpec struct {
 	// Local specifies the local data and metadata branches.
-	// +Required
 	Local BranchSpec `json:"local"`
 
 	// Remote specifies the remote data and metadata branches.
-	// +Optional
+	// +optional
 	Remote *BranchSpec `json:"remote,omitempty"`
 }
 
 // BranchSpec specifies the data and metadata branches for Gitcd
 type BranchSpec struct {
 	// Data specifies the data branch.
-	// +Required
 	Data string `json:"data,omitempty"`
 
 	// Metadata specifies the data branch.
-	// +Required
 	Metadata string `json:"metadata,omitempty"`
+
+	// NoCreateBranch specifies if branches should not be created if they do not exist.
+	// +optional
+	NoCreateBranch bool `json:"noCreateBranch,omitempty"`
 }
 
 // PullSpec specifies the pull configuration for Gitcd.
 type PullSpec struct {
 	// RetentionPolicies specifies the retention policies while merging changes from remote.
-	// +Optional
+	// +optional
 	RetentionPolicies RetentionPoliciesSpec `json:"retentionPolicies,omitempty"`
 
 	// ConflictResolutions specifies the conflict resolution policy while merging changes from remote.
-	// +Optional
+	// +optional
 	// +default:=default=1
 	ConflictResolutions string `json:"conflictResolutions,omitempty"`
 
 	// PushAfterMerge specifies if the local branch must be pushed to remote after merging from remote.
-	// +Optional
+	// +optional
 	// +default=true
 	PushAfterMerge bool `json:"pushAfterMerge,omitempty"`
 
 	// TickerDuration species the ticker duration between automated pulls from remote.
-	// +Required
 	TickerDuration metav1.Duration `json:"tickerDuration"`
 }
 
 // RetentionPoliciesSpec specifies the merge retention policies for Gitcd.
 type RetentionPoliciesSpec struct {
 	// Include specifies the include retention policies.
-	// +Optional
+	// +optional
 	// +default:=default=.*
 	Include string `json:"include,omitempty"`
 
 	// Exclude specifies the exclude retention policies.
-	// +Optional
+	// +optional
 	// +default:=default=^$
 	Exclude string `json:"exclude,omitempty"`
 }
@@ -168,39 +222,41 @@ type RetentionPoliciesSpec struct {
 // PullRequestSpec specifies the pull request configuration (automated pull of local changes into remote) for Gitcd.
 type PullRequestSpec struct {
 	// ConflictResolutions specifies the conflict resolution policy while pulling local changes into remote.
-	// +Optional
+	// +optional
 	// +default:=default=2
 	ConflictResolutions string `json:"conflictResolutions,omitempty"`
 
 	// PushAfterMerge specifies if the local branch must be pushed to remote after merging from remote.
-	// +Optional
+	// +optional
 	// +default=true
 	PushAfterMerge bool `json:"pushAfterMerge,omitempty"`
 
 	// TickerDuration species the ticker duration between automated pull of local changes into remote.
-	// +Required
 	TickerDuration metav1.Duration `json:"tickerDuration"`
 
 	// MergeCommitterName specifies the committer name to use for merge commits.
-	// +Optional
+	// +optional
 	MergeCommitterName string `json:"mergeCommitterName,omitempty"`
 }
 
 type ApiserverSpec ImageSpec
 
-// ControllerUserSpec specifies the user and group details which the controller is to be configured to use.
-type ControllerUserSpec struct {
-	// UserName specifies the user name the controller is to be configured to use.
-	// +Required
-	UserName string `json:"userName"`
+type AppSpec struct {
+	// Number of desired pods. This is a pointer to distinguish between explicit
+	// zero and not specified. Defaults to 1.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty" protobuf:"varint,1,opt,name=replicas"`
 
-	// GroupName specifies the group name the controller is to be configured to use.
-	// +Optional
-	GroupName string `json:"groupName,omitempty"`
+	// EntrypointsConfigMapName specifies the name of the configmap containing the trishanku entrypoint scripts for the
+	// The confimapg will be generated if not existing. The configmap name will be generated if not specified.
+	// +optional
+	EntrypointsConfigMapName *string `json:"entrypointsConfigMapName,omitempty"`
 
 	// KubeconfigMountPath specifies the path where the generated controller kubeconfig should be mounted.
-	// +Required
 	KubeconfigMountPath string `json:"kubeconfigMountPath,omitempty"`
+
+	// PodTemplate specifies the pod template for the controller deployment.
+	PodTemplate PodTemplateSpec `json:"podTemplate"`
 }
 
 // PodTemplateSpec has been copied from corev1 package to annotate metadata to preserve unknown fields.

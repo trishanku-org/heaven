@@ -4,22 +4,48 @@ kind: TrishankuHeaven
 metadata:
   labels:
     app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: trishankuheaven-sample
+    app.kubernetes.io/instance: sample-k8s
     app.kubernetes.io/part-of: trishanku-controller
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: trishanku-controller
-  name: trishankuheaven-sample
+  name: sample-k8s
 spec:
+  skip:
+    app: true
+ 
+---
+apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+kind: TrishankuHeaven
+metadata:
+  labels:
+    app.kubernetes.io/name: trishankuheaven
+    app.kubernetes.io/instance: sample-k8s-kcm
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trishanku-controller
+  name: sample-k8s-kcm
+spec:
+  skip:
+    entrypoints: true
+  certificates:
+    certificateAuthoritySecretName: sample-k8s-cert-ca
+    serviceAccountsSecretName: sample-k8s-cert-service-account
+    kubernetesSecretName: sample-k8s-cert-kubernetes
+    adminSecretName: sample-k8s-admin
+    controller:
+      secretName: sample-k8s-kcm
+      userName: system:kube-controller-manager
+      groupName: system:kube-controller-manager
   eventsEtcd:
     local: {}
-  git:
+  gitcd:
     credentialsSecretName: git-cred
     imagePullSecretName: gar-cred
-    remoteRepo: https://github.com/amshuman-kr/githubrepository-sample
+    remoteRepo: https://github.com/trishanku-org/sample-k8s
     branches:
       local:
-        data: kube-scheduler/data
-        metadata: kube-scheduler/metadata
+        data: kcm/data
+        metadata: kcm/metadata
       remote:
         data: upstream/data
         metadata: upstream/metadata
@@ -30,46 +56,148 @@ spec:
       conflictResolutions: default=2
       pushAfterMerge: true
       tickerDuration: 25s
-  controllerUser:
-    userName: system:kube-scheduler
-    groupName: system:kube-scheduler
+  app:
+    replicas: 1
+    entrypointsConfigMapName: sample-k8s-entrypoints
+    podTemplate:
+      metadata:
+        annotations:
+          from: trishanku
+        labels:
+          from: trishanku
+      spec:
+        automountServiceAccountToken: false
+        containers:
+        - name: kcm
+          image: registry.k8s.io/kube-controller-manager:v1.24.4
+          imagePullPolicy: IfNotPresent
+          command:
+          - kube-controller-manager
+          - --bind-address=0.0.0.0
+          - --cluster-cidr=10.200.0.0/16
+          - --cluster-name=kubernetes
+          - --cluster-signing-cert-file=/trishanku/certs/ca/tls.crt
+          - --cluster-signing-key-file=/trishanku/certs/ca/tls.key
+          - --kubeconfig=/trishanku/certs/kcm/kubeconfig
+          - --leader-elect=false
+          - --root-ca-file=/trishanku/certs/ca/tls.crt
+          - --service-account-private-key-file=/trishanku/certs/sa/tls.key
+          - --service-cluster-ip-range=10.32.0.0/24
+          - --use-service-account-credentials=true
+          - --concurrent-deployment-syncs=1
+          - --concurrent-endpoint-syncs=1
+          - --concurrent-service-endpoint-syncs=1
+          - --concurrent-gc-syncs=1
+          - --concurrent-namespace-syncs=1
+          - --concurrent-replicaset-syncs=1
+          - --concurrent-rc-syncs=1
+          - --concurrent-resource-quota-syncs=1
+          - --concurrent-service-syncs=1
+          - --concurrent-serviceaccount-token-syncs=1
+          - --concurrent-statefulset-syncs=1
+          - --concurrent-ttl-after-finished-syncs=1
+          - --v=2
+          volumeMounts:
+          - name: ca
+            mountPath: /trishanku/certs/ca
+          - name: sa
+            mountPath: /trishanku/certs/sa
+          - name: kcm
+            mountPath: /trishanku/certs/kcm
+        volumes:
+        - name: ca
+          secret:
+            secretName: sample-k8s-cert-ca
+        - name: sa
+          secret:
+            secretName: sample-k8s-cert-service-account
+        - name: kcm
+          secret:
+            secretName: sample-k8s-kcm
+
+---
+apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+kind: TrishankuHeaven
+metadata:
+  labels:
+    app.kubernetes.io/name: trishankuheaven
+    app.kubernetes.io/instance: sample-k8s-kube-scheduler
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trishanku-controller
+  name: sample-k8s-kube-scheduler
+spec:
+  skip:
+    entrypoints: true
+  certificates:
+    certificateAuthoritySecretName: sample-k8s-cert-ca
+    serviceAccountsSecretName: sample-k8s-cert-service-account
+    kubernetesSecretName: sample-k8s-cert-kubernetes
+    adminSecretName: sample-k8s-admin
+    controller:
+      secretName: sample-k8s-kube-scheduler
+      userName: system:kube-scheduler
+      groupName: system:kube-scheduler
+  eventsEtcd:
+    local: {}
+  gitcd:
+    credentialsSecretName: git-cred
+    imagePullSecretName: gar-cred
+    remoteRepo: https://github.com/trishanku-org/sample-k8s
+    branches:
+      local:
+        data: scheduler/data
+        metadata: scheduler/metadata
+      remote:
+        data: upstream/data
+        metadata: upstream/metadata
+        noCreateBranch: true
+    pull:
+      pushAfterMerge: true
+      tickerDuration: 15s
+    pullRequest:
+      conflictResolutions: default=2
+      pushAfterMerge: true
+      tickerDuration: 25s
+  app:
+    replicas: 1
+    entrypointsConfigMapName: sample-k8s-entrypoints
     kubeconfigMountPath: /trishanku/kubeconfig
-  replicas: 1
-  template:
-    metadata:
-      annotations:
-        from: trishanku
-      labels:
-        from: trishanku
-    spec:
-      automountServiceAccountToken: false
-      containers:
-      - name: kube-scheduler
-        image: registry.k8s.io/kube-scheduler:v1.24.4
-        imagePullPolicy: IfNotPresent
-        command:
-        - kube-scheduler
-        - --config=/configs/kube-scheduler-config.yaml
-        - --v=4
-        volumeMounts:
+    podTemplate:
+      metadata:
+        annotations:
+          from: trishanku
+        labels:
+          from: trishanku
+      spec:
+        automountServiceAccountToken: false
+        containers:
+        - name: kube-scheduler
+          image: registry.k8s.io/kube-scheduler:v1.24.4
+          imagePullPolicy: IfNotPresent
+          command:
+          - kube-scheduler
+          - --config=/configs/kube-scheduler-config.yaml
+          - --v=4
+          volumeMounts:
+          - name: configs
+            mountPath: /configs
+        volumes:
         - name: configs
-          mountPath: /configs
-      volumes:
-      - name: configs
-        configMap:
-          name: trishankuheaven-sample
- 
+          configMap:
+            name: sample-k8s-kube-scheduler
+
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
     app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: trishankuheaven-sample
+    app.kubernetes.io/instance: sample-k8s-kube-scheduler
     app.kubernetes.io/part-of: trishanku-controller
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: trishanku-controller
-  name: trishankuheaven-sample
+  name: sample-k8s-kube-scheduler
 data:
   kube-scheduler-config.yaml: |
     apiVersion: kubescheduler.config.k8s.io/v1beta3

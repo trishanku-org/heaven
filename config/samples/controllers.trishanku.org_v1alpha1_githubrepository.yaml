@@ -3,13 +3,14 @@ kind: GitHubRepository
 metadata:
   labels:
     app.kubernetes.io/name: githubrepository
-    app.kubernetes.io/instance: githubrepository-sample
+    app.kubernetes.io/instance: sample-k8s
     app.kubernetes.io/part-of: trishanku-controller
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: trishanku-controller
-  name: githubrepository-sample
+  name: sample-k8s
 spec:
   credentialsSecretName: git-cred
-  credentialsSecretTokenKey: PASSWORD
-  description: "Sample GitHub repository."
+  credentialsSecretTokenKey: password
+  description: "GitHub repository for a sample trishanku heaven."
+  organization: trishanku-org
   private: true

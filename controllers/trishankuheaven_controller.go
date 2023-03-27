@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"strconv"
@@ -60,8 +61,10 @@ type TrishankuHeavenReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.1/pkg/reconcile
 func (r *TrishankuHeavenReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctrl.Result, err error) {
 	var (
-		l      = log.FromContext(ctx)
-		heaven = &v1alpha1.TrishankuHeaven{}
+		l         = log.FromContext(ctx)
+		heaven    = &v1alpha1.TrishankuHeaven{}
+		c         = make(configNames)
+		ensureFns []ensureFunc
 	)
 
 	l.Info("Reconciling", "key", req.String())
@@ -83,13 +86,22 @@ func (r *TrishankuHeavenReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// TODO check if controller and owner references are handled by controller-runtime.
 
-	var ensureFns []ensureFunc
+	c.init(heaven)
 
-	ensureFns = append(ensureFns, r.ensureCertificateSecrets(heaven.Spec.ControllerUser.UserName, heaven.Spec.ControllerUser.GroupName)...)
-	ensureFns = append(ensureFns, r.ensureEntrypointsConfigMap, r.ensureDeployment)
+	l.Info("configNames", "configNames", c)
+
+	if !heaven.Spec.Skip.Cerfificates {
+		ensureFns = append(ensureFns, r.ensureCertificateSecrets(heaven, c)...)
+	}
+
+	if !heaven.Spec.Skip.Entrypoints {
+		ensureFns = append(ensureFns, r.ensureEntrypointsConfigMap)
+	}
+
+	ensureFns = append(ensureFns, r.ensureDeployment)
 
 	for _, ensureFn := range ensureFns {
-		if err = ensureFn(ctx, heaven); err != nil {
+		if err = ensureFn(ctx, heaven, c); err != nil {
 			res.Requeue = true
 			return
 		}
@@ -100,6 +112,7 @@ func (r *TrishankuHeavenReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 const (
 	KEY_SECRET_KUBECONFIG = "kubeconfig"
+	KEY_SECRET_URL        = "url"
 
 	SECRET_CERT_CA               = "cert-ca"
 	SECRET_CERT_KUBERNETES       = "cert-kubernetes"
@@ -126,48 +139,132 @@ const (
 	BASE_PATH_ENTRYPOINTS = "/.trishanku/entrypoints"
 	BASE_PATH_HOME        = "/root"
 	BASE_PATH_TEMP        = "/.trishanku/temp"
+
+	TRISHANKU_OU           = "Heaven"
+	TRISHANKU_CONTEXT_NAME = "default"
+	TRISHANKU_CLUSTER_NAME = "trishanku"
 )
 
-type ensureFunc func(context.Context, *v1alpha1.TrishankuHeaven) error
+type configNames map[string]string
 
-func getConfigurationName(heaven *v1alpha1.TrishankuHeaven, secret string) string {
-	return heaven.Name + "-" + secret
-}
+func (c configNames) init(heaven *v1alpha1.TrishankuHeaven) {
+	type configSpec struct {
+		name       string
+		configName *string
+	}
 
-func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(controllerCN, controllerO string) (fns []ensureFunc) {
 	var (
-		ca *certs.Certificate
+		configs = []configSpec{
+			{name: SECRET_CERT_CA, configName: heaven.Spec.Certificates.CertificateAuthoritySecretName},
+			{name: SECRET_CERT_SERVICE_ACCOUNTS, configName: heaven.Spec.Certificates.ServiceAccountsSecretName},
+			{name: SECRET_CERT_KUBERNETES, configName: heaven.Spec.Certificates.KubernetesSecretName},
+			{name: SECRET_KUBECONFIG_ADMIN, configName: heaven.Spec.Certificates.AdminSecretName},
+		}
+
+		entryPointsConfigMapName *string = nil
 	)
 
-	for _, s := range []struct {
+	if heaven.Spec.App != nil {
+		entryPointsConfigMapName = heaven.Spec.App.EntrypointsConfigMapName
+	}
+
+	configs = append(configs, configSpec{name: CONFIG_ENTRYPOINTS, configName: entryPointsConfigMapName})
+
+	if heaven.Spec.Certificates.Controller != nil {
+		configs = append(configs, configSpec{
+			name:       SECRET_KUBECONFIG_CONTROLLER,
+			configName: heaven.Spec.Certificates.Controller.SecretName,
+		})
+	}
+
+	for _, s := range configs {
+		func(s configSpec) {
+			if _, ok := c[s.name]; !ok {
+				if s.configName != nil {
+					c[s.name] = *s.configName
+				} else {
+					c[s.name] = heaven.Name + "-" + s.name
+				}
+			}
+		}(s)
+	}
+}
+
+func (c configNames) getConfigurationName(config string) string {
+	return c[config]
+}
+
+type ensureFunc func(context.Context, *v1alpha1.TrishankuHeaven, configNames) error
+
+func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(heaven *v1alpha1.TrishankuHeaven, c configNames) (fns []ensureFunc) {
+	type certSpec struct {
 		name, cn, o, ou    string
 		dnsNames           []string
 		isCA               bool
 		generateKubeconfig bool
-	}{
-		{name: SECRET_CERT_CA, cn: "CA", o: "Trishanku", ou: "CA", isCA: true},
-		{name: SECRET_CERT_SERVICE_ACCOUNTS, cn: "service-accounts", o: "Trishanku", ou: "Heaven"},
-		{name: SECRET_KUBECONFIG_ADMIN, cn: "admin", o: "system:masters", ou: "Heaven", generateKubeconfig: true},
-		{name: SECRET_KUBECONFIG_CONTROLLER, cn: controllerCN, o: controllerO, ou: "Heaven", generateKubeconfig: true},
-		{
-			name: SECRET_CERT_KUBERNETES,
-			cn:   "kubernetes",
-			o:    "Trishanku",
-			ou:   "Heaven",
-			dnsNames: []string{
-				"localhost",
-				"kubernetes",
-				"kubernetes.default",
-				"kubernetes.default.svc",
-				"kubernetes.default.svc.cluster",
-				"kubernetes.svc.cluster.local",
+		secretName         *string
+	}
+
+	var (
+		ca        *certs.Certificate
+		certSpecs = []certSpec{
+			{
+				name:       SECRET_CERT_CA,
+				secretName: heaven.Spec.Certificates.CertificateAuthoritySecretName,
+				cn:         "CA",
+				o:          "Trishanku",
+				ou:         "CA",
+				isCA:       true,
 			},
-		},
-	} {
-		func(name, cn, o, ou string, dnsNames []string, isCA bool, generateKubeconfig bool) {
-			fns = append(fns, func(ctx context.Context, heaven *v1alpha1.TrishankuHeaven) (err error) {
+			{
+				name:       SECRET_CERT_SERVICE_ACCOUNTS,
+				secretName: heaven.Spec.Certificates.ServiceAccountsSecretName,
+				cn:         "service-accounts",
+				o:          "Trishanku",
+				ou:         TRISHANKU_OU,
+			},
+			{
+				name:               SECRET_KUBECONFIG_ADMIN,
+				cn:                 "admin",
+				o:                  "system:masters",
+				ou:                 TRISHANKU_OU,
+				generateKubeconfig: true,
+				secretName:         heaven.Spec.Certificates.AdminSecretName,
+			},
+			{
+				name: SECRET_CERT_KUBERNETES,
+				cn:   "kubernetes",
+				o:    "Trishanku",
+				ou:   TRISHANKU_OU,
+				dnsNames: []string{
+					"localhost",
+					"kubernetes",
+					"kubernetes.default",
+					"kubernetes.default.svc",
+					"kubernetes.default.svc.cluster",
+					"kubernetes.svc.cluster.local",
+				},
+				secretName: heaven.Spec.Certificates.KubernetesSecretName,
+			},
+		}
+	)
+
+	if heaven.Spec.Certificates.Controller != nil {
+		certSpecs = append(certSpecs, certSpec{
+			name:               SECRET_KUBECONFIG_CONTROLLER,
+			cn:                 heaven.Spec.Certificates.Controller.UserName,
+			o:                  heaven.Spec.Certificates.Controller.GroupName,
+			ou:                 TRISHANKU_OU,
+			generateKubeconfig: true,
+			secretName:         heaven.Spec.Certificates.Controller.SecretName,
+		})
+	}
+
+	for _, cs := range certSpecs {
+		func(cs certSpec) {
+			fns = append(fns, func(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (err error) {
 				var (
-					secretName = getConfigurationName(heaven, name)
+					secretName = c.getConfigurationName(cs.name)
 					namespace  = heaven.Namespace
 
 					s = &corev1.Secret{
@@ -177,12 +274,12 @@ func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(controllerCN, contr
 						},
 					}
 
-					c *certs.Certificate
+					cert *certs.Certificate
 				)
 
 				if err = r.Get(ctx, client.ObjectKeyFromObject(s), s); err == nil {
 					// The certificate secret exists re-use it.
-					if isCA {
+					if cs.isCA {
 						ca, err = certs.LoadCertificateFromMap(s.Data)
 					}
 
@@ -193,9 +290,9 @@ func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(controllerCN, contr
 				}
 
 				defer func() {
-					if isCA && err == nil {
+					if cs.isCA && err == nil {
 						// Save generated CA certificat for later use in generating other certificates.
-						ca = c
+						ca = cert
 					}
 				}()
 
@@ -204,13 +301,15 @@ func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(controllerCN, contr
 				s.Name = secretName
 				s.Namespace = namespace
 
-				if c, err = (&certs.CertificateConfig{
-					CommonName:         cn,
-					Organization:       []string{o},
-					OrganizationalUnit: []string{ou},
-					DNSNames:           dnsNames,
+				s.Type = corev1.SecretTypeTLS
+
+				if cert, err = (&certs.CertificateConfig{
+					CommonName:         cs.cn,
+					Organization:       []string{cs.o},
+					OrganizationalUnit: []string{cs.ou},
+					DNSNames:           cs.dnsNames,
 					CA:                 ca,
-					IsCA:               isCA,
+					IsCA:               cs.isCA,
 				}).Generate(); err != nil {
 					return
 				}
@@ -219,20 +318,20 @@ func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(controllerCN, contr
 					s.Data = make(map[string][]byte)
 				}
 
-				c.WriteToMap(s.Data)
+				cert.WriteToMap(s.Data)
 
-				if generateKubeconfig {
+				if cs.generateKubeconfig {
 					if err = certs.GenerateKubeconfigAndWriteToMap(
-						"default",
-						"trishanku",
-						cn,
+						TRISHANKU_CONTEXT_NAME,
+						TRISHANKU_CLUSTER_NAME,
+						cs.cn,
 						clientcmdv1.Cluster{
 							Server:                   "https://localhost:6443",
-							CertificateAuthorityData: c.CA.CertificatePEM,
+							CertificateAuthorityData: cert.CA.CertificatePEM,
 						},
 						clientcmdv1.AuthInfo{
-							ClientCertificateData: c.CertificatePEM,
-							ClientKeyData:         c.PrivateKeyPEM,
+							ClientCertificateData: cert.CertificatePEM,
+							ClientKeyData:         cert.PrivateKeyPEM,
 						},
 						s.Data,
 					); err != nil {
@@ -246,29 +345,29 @@ func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(controllerCN, contr
 
 				return
 			})
-		}(s.name, s.cn, s.o, s.ou, s.dnsNames, s.isCA, s.generateKubeconfig)
+		}(cs)
 	}
 
 	return
 }
 
-func (r *TrishankuHeavenReconciler) ensureEntrypointsConfigMap(ctx context.Context, heaven *v1alpha1.TrishankuHeaven) (err error) {
-	var c = &corev1.ConfigMap{
+func (r *TrishankuHeavenReconciler) ensureEntrypointsConfigMap(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (err error) {
+	var cm = &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getConfigurationName(heaven, CONFIG_ENTRYPOINTS),
+			Name:      c.getConfigurationName(CONFIG_ENTRYPOINTS),
 			Namespace: heaven.Namespace,
 		},
 	}
 
-	_, err = ctrl.CreateOrUpdate(ctx, r.Client, c, func() error {
-		c.Name = getConfigurationName(heaven, CONFIG_ENTRYPOINTS)
-		c.Namespace = heaven.Namespace
+	_, err = ctrl.CreateOrUpdate(ctx, r.Client, cm, func() error {
+		cm.Name = c.getConfigurationName(CONFIG_ENTRYPOINTS)
+		cm.Namespace = heaven.Namespace
 
-		if c.Data == nil {
-			c.Data = make(map[string]string)
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
 		}
 
-		c.Data[ENTRYPOINT_GIT_PRE] = `#!/bin/bash
+		cm.Data[ENTRYPOINT_GIT_PRE] = `#!/bin/bash
 if [ ! -f "${HOME}/.git-credentials" ]; then
 	for file in "${HOME}/.gitconfig" "${HOME}/.git-credentials"; do
 		touch "$file"
@@ -290,69 +389,83 @@ fi
 
 REPO="${HOME}/repo"
 
+function set_head {
+	local BRANCH="$1"
+
+	echo "Setting branch ${BRANCH} as the HEAD."
+	git symbolic-ref HEAD "refs/heads/$BRANCH"
+}
+
+function init_data_branch {
+	local BRANCH="$1"
+
+	# Create an empty tree as the base commit if the branch is not pointing to a valid commit.
+	if git cat-file -e "$BRANCH" 2> /dev/null; then
+	 	echo "Reusing existing branch ${BRANCH}."
+		set_head "$BRANCH"
+	else
+		echo "Creating an initial commit for the branch ${BRANCH}."
+		git update-ref "refs/heads/$BRANCH" $(git commit-tree -m "init" $(git write-tree)) \
+			&& set_head "$BRANCH"
+	fi
+}
+
 if [ ! -d "$REPO" ]; then
-	function set_head {
-		local BRANCH="$1"
-
-		echo "Setting branch ${BRANCH} as the HEAD."
-		git symbolic-ref HEAD "refs/heads/$BRANCH"
-	}
-
-	function init_data_branch {
-		local BRANCH="$1"
-
-		# Create an empty tree as the base commit if the branch is not pointing to a valid commit.
-		if git cat-file -e "$BRANCH" 2> /dev/null; then
-		 	echo "Reusing existing branch ${BRANCH}."
-			set_head "$BRANCH"
-		else
-			echo "Creating an initial commit for the branch ${BRANCH}."
-			git update-ref "refs/heads/$BRANCH" $(git commit-tree -m "init" $(git write-tree)) \
-				&& set_head "$BRANCH"
-		fi
-	}
-
 	if [ "$GITCD_REMOTE_REPO" == "" ]; then
 		git init --bare --initial-branch "$GITCD_BRANCH_DATA" "$REPO" || exit 1
-
-		cd "$REPO"
-
-		init_data_branch "$GITCD_BRANCH_DATA"
 	else
 		git clone --bare "$GITCD_REMOTE_REPO" "$REPO" || exit 1
-
-		cd "$REPO"
-
-		git config core.logAllRefUpdates always
-		git config --unset-all remote.origin.fetch
-		git config --unset-all remote.origin.push
-
-		function prepare_branch {
-			local BRANCH="$1"
-			local REMOTE_BRANCH="$2"
-	  
-			if  git show-branch "$BRANCH" > /dev/null 2>&1; then
-			  echo "Branch ${BRANCH} already exists."
-			else
-				if git show-branch "$REMOTE_BRANCH" > /dev/null 2>&1; then
-					echo "Creating branch ${BRANCH} from ${REMOTE_BRANCH}."
-					git branch "${BRANCH}" "${REMOTE_BRANCH}" --no-track
-				else
-					echo "Remote branch ${REMOTE_BRANCH} does not exist. Creating a fresh branch ${BRANCH}."
-				fi
-			fi
-			
-			git config --add remote.origin.fetch "refs/heads/${REMOTE_BRANCH}:refs/heads/${REMOTE_BRANCH}"
-			git config --add remote.origin.push "refs/heads/${BRANCH}:refs/heads/${BRANCH}"
-		}
-
-		prepare_branch "$GITCD_BRANCH_DATA" "$GITCD_REMOTE_BRANCH_DATA"
-		prepare_branch "$GITCD_BRANCH_METADATA" "$GITCD_REMOTE_BRANCH_METADATA"
-
-		init_data_branch "$GITCD_BRANCH_DATA"
-
-		[ "$GITCD_PUSH_AFTER_INIT" != "" ] && git push
 	fi
+fi
+
+cd "$REPO" || exit 1
+
+if [ "$GITCD_REMOTE_REPO" == "" ]; then
+	# Local repo.
+	init_data_branch "$GITCD_BRANCH_DATA"
+
+	exit 0
+fi
+
+# Remote repo.
+git fetch || exit 1
+
+git config core.logAllRefUpdates always
+git config --unset-all remote.origin.fetch
+git config --unset-all remote.origin.push
+
+function prepare_branch {
+	local BRANCH="$1"
+	local REMOTE_BRANCH="$2"
+	
+	git config --add remote.origin.fetch "refs/heads/${REMOTE_BRANCH}:refs/heads/${REMOTE_BRANCH}"
+	git config --add remote.origin.push "refs/heads/${BRANCH}:refs/heads/${BRANCH}"
+ 
+	if  git show-branch "$BRANCH" > /dev/null 2>&1; then
+	  echo "Branch ${BRANCH} already exists."
+	elif [ "$GITCD_CREATE_LOCAL_BRANCH" == "true" ]; then
+		if git show-branch "$REMOTE_BRANCH" > /dev/null 2>&1; then
+			echo "Creating branch ${BRANCH} from ${REMOTE_BRANCH}."
+			git branch "${BRANCH}" "${REMOTE_BRANCH}" --no-track
+		elif [ "$GITCD_CREATE_REMOTE_BRANCH" == "true" ]; then
+			echo "Remote branch ${REMOTE_BRANCH} does not exist. Creating a fresh branch ${BRANCH}."
+		else
+			echo "Exiting because ${REMOTE_BRANCH} does not exist."
+			exit 1
+		fi
+	else
+		echo "Exiting because ${BRANCH} does not exist."
+		exit 1
+	fi
+}
+
+prepare_branch "$GITCD_BRANCH_DATA" "$GITCD_REMOTE_BRANCH_DATA"
+prepare_branch "$GITCD_BRANCH_METADATA" "$GITCD_REMOTE_BRANCH_METADATA"
+
+init_data_branch "$GITCD_BRANCH_DATA"
+
+if [ "$GITCD_PUSH_AFTER_INIT" != "" ]; then
+	git push
 fi
 `
 		return nil
@@ -375,6 +488,16 @@ func getImagePullPolicy(spec *v1alpha1.ImageSpec) corev1.PullPolicy {
 	}
 
 	return ""
+}
+
+func getCreateBranchEnvVar(name string, branch *v1alpha1.BranchSpec) corev1.EnvVar {
+	var create bool
+
+	if branch != nil {
+		create = !branch.NoCreateBranch
+	}
+
+	return corev1.EnvVar{Name: name, Value: strconv.FormatBool(create)}
 }
 
 func getRemoteBranchData(heaven *v1alpha1.TrishankuHeaven) string {
@@ -402,7 +525,11 @@ func appendMergeFlagsToCommand(c *corev1.Container, mergeFlags map[string]string
 }
 
 func getCommitterName(heaven *v1alpha1.TrishankuHeaven) string {
-	return heaven.Spec.ControllerUser.UserName
+	if heaven.Spec.Certificates.Controller != nil {
+		return heaven.Spec.Certificates.Controller.UserName
+	}
+
+	return ""
 }
 func getMergeCommitterName(heaven *v1alpha1.TrishankuHeaven) string {
 	if heaven.Spec.Gitcd.PullRequest != nil && len(heaven.Spec.Gitcd.PullRequest.MergeCommitterName) > 0 {
@@ -412,23 +539,31 @@ func getMergeCommitterName(heaven *v1alpha1.TrishankuHeaven) string {
 	return getCommitterName(heaven)
 }
 
-func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.TrishankuHeaven) (d *appsv1.Deployment, err error) {
+func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (d *appsv1.Deployment, err error) {
 	var (
 		podSpec                   *corev1.PodSpec
 		ntic, ntc                 int
 		gitcd, apiserver, gitcdPR corev1.Container
 		useEventsEtcd             = heaven.Spec.EventsEtcd != nil && heaven.Spec.EventsEtcd.Local != nil
+		gitCredsSecretName        string
 	)
 
+	if heaven.Spec.Gitcd == nil {
+		err = errors.New("no gitcd configuration found")
+		return
+	}
+
+	gitCredsSecretName = heaven.Spec.Gitcd.CredentialsSecretName
+
 	d = &appsv1.Deployment{
-		ObjectMeta: *heaven.Spec.Template.ObjectMeta.DeepCopy(),
+		ObjectMeta: *heaven.Spec.App.PodTemplate.ObjectMeta.DeepCopy(),
 		Spec: appsv1.DeploymentSpec{
-			Replicas: heaven.Spec.Replicas,
-			Selector: &metav1.LabelSelector{MatchLabels: heaven.Spec.Template.ObjectMeta.Labels},
+			Replicas: heaven.Spec.App.Replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: heaven.Spec.App.PodTemplate.ObjectMeta.Labels},
 			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: *heaven.Spec.Template.ObjectMeta.DeepCopy(),
-				Spec:       *heaven.Spec.Template.Spec.DeepCopy(),
+				ObjectMeta: *heaven.Spec.App.PodTemplate.ObjectMeta.DeepCopy(),
+				Spec:       *heaven.Spec.App.PodTemplate.Spec.DeepCopy(),
 			},
 		},
 	}
@@ -441,7 +576,7 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 	for _, secret := range []string{SECRET_CERT_KUBERNETES, SECRET_CERT_SERVICE_ACCOUNTS} {
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 			Name:         secret,
-			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: getConfigurationName(heaven, secret)}},
+			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: c.getConfigurationName(secret)}},
 		})
 	}
 
@@ -450,8 +585,8 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 		corev1.Volume{
 			Name: CONFIG_ENTRYPOINTS,
 			VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{Name: getConfigurationName(heaven, CONFIG_ENTRYPOINTS)},
-				DefaultMode:          pointer.Int32Ptr(0755),
+				LocalObjectReference: corev1.LocalObjectReference{Name: c.getConfigurationName(CONFIG_ENTRYPOINTS)},
+				DefaultMode:          pointer.Int32(0755),
 			}},
 		},
 		corev1.Volume{
@@ -483,19 +618,36 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 			ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
 			Command:         []string{path.Join(BASE_PATH_ENTRYPOINTS, ENTRYPOINT_GIT_PRE)},
 			Env: []corev1.EnvVar{
+				{
+					Name: "GIT_CRED_USERNAME",
+					ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
+						Key:                  corev1.BasicAuthUsernameKey,
+					}},
+				},
+				{
+					Name: "GIT_CRED_PASSWORD",
+					ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
+						Key:                  corev1.BasicAuthPasswordKey,
+					}},
+				},
+				{
+					Name: "GIT_CRED_URL",
+					ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
+						Key:                  KEY_SECRET_URL,
+					}},
+				},
 				{Name: "GITCD_COMMITTER_NAME", Value: getCommitterName(heaven)},
 				{Name: "GITCD_BRANCH_DATA", Value: heaven.Spec.Gitcd.Branches.Local.Data},
 				{Name: "GITCD_BRANCH_METADATA", Value: heaven.Spec.Gitcd.Branches.Local.Metadata},
+				getCreateBranchEnvVar("GITCD_CREATE_LOCAL_BRANCH", &heaven.Spec.Gitcd.Branches.Local),
 				{Name: "GITCD_REMOTE_REPO", Value: heaven.Spec.Gitcd.RemoteRepo},
 				{Name: "GITCD_REMOTE_BRANCH_DATA", Value: getRemoteBranchData(heaven)},
 				{Name: "GITCD_REMOTE_BRANCH_METADATA", Value: getRemoteBranchMetadata(heaven)},
+				getCreateBranchEnvVar("GITCD_CREATE_REMOTE_BRANCH", heaven.Spec.Gitcd.Branches.Remote),
 			},
-			EnvFrom: []corev1.EnvFromSource{{
-				Prefix: "GIT_CRED_",
-				SecretRef: &corev1.SecretEnvSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: heaven.Spec.Gitcd.CredentialsSecretName},
-				},
-			}},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: CONFIG_ENTRYPOINTS, MountPath: BASE_PATH_ENTRYPOINTS, ReadOnly: true},
 				{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
@@ -649,20 +801,37 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 				ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
 				Command:         []string{path.Join(BASE_PATH_ENTRYPOINTS, ENTRYPOINT_GIT_PRE)},
 				Env: []corev1.EnvVar{
+					{
+						Name: "GIT_CRED_USERNAME",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
+							Key:                  corev1.BasicAuthUsernameKey,
+						}},
+					},
+					{
+						Name: "GIT_CRED_PASSWORD",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
+							Key:                  corev1.BasicAuthPasswordKey,
+						}},
+					},
+					{
+						Name: "GIT_CRED_URL",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
+							Key:                  KEY_SECRET_URL,
+						}},
+					},
 					{Name: "GITCD_COMMITTER_NAME", Value: getMergeCommitterName(heaven)},
 					{Name: "GITCD_BRANCH_DATA", Value: getRemoteBranchData(heaven)},
 					{Name: "GITCD_BRANCH_METADATA", Value: getRemoteBranchMetadata(heaven)},
+					getCreateBranchEnvVar("GITCD_CREATE_LOCAL_BRANCH", heaven.Spec.Gitcd.Branches.Remote),
 					{Name: "GITCD_REMOTE_REPO", Value: heaven.Spec.Gitcd.RemoteRepo},
 					{Name: "GITCD_REMOTE_BRANCH_DATA", Value: heaven.Spec.Gitcd.Branches.Local.Data},
 					{Name: "GITCD_REMOTE_BRANCH_METADATA", Value: heaven.Spec.Gitcd.Branches.Local.Metadata},
+					getCreateBranchEnvVar("GITCD_CREATE_REMOTE_BRANCH", &heaven.Spec.Gitcd.Branches.Local),
 					{Name: "GITCD_PUSH_AFTER_INIT", Value: "x"},
 				},
-				EnvFrom: []corev1.EnvFromSource{{
-					Prefix: "GIT_CRED_",
-					SecretRef: &corev1.SecretEnvSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: heaven.Spec.Gitcd.CredentialsSecretName},
-					},
-				}},
 				VolumeMounts: []corev1.VolumeMount{
 					{Name: CONFIG_ENTRYPOINTS, MountPath: BASE_PATH_ENTRYPOINTS, ReadOnly: true},
 					{Name: VOLUME_HOME_PR, MountPath: BASE_PATH_HOME},
@@ -678,7 +847,7 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 				"/gitcd",
 				"pull",
 				"--repo=/root/repo",
-				"--committer-name=pr-" + heaven.Spec.ControllerUser.UserName,
+				"--committer-name=pr-" + getCommitterName(heaven),
 				"--data-reference-names=default=refs/heads/" + getRemoteBranchData(heaven),
 				"--metadata-reference-names=default=refs/heads/" + getRemoteBranchMetadata(heaven),
 				"--no-fast-forwards=default=false",
@@ -705,10 +874,10 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 		podSpec.Containers = append(podSpec.Containers, gitcdPR)
 	}
 
-	if len(heaven.Spec.ControllerUser.KubeconfigMountPath) > 0 {
-		var baseMountPath, kubeconfigFileName = path.Split(heaven.Spec.ControllerUser.KubeconfigMountPath)
+	if len(heaven.Spec.App.KubeconfigMountPath) > 0 {
+		var baseMountPath, kubeconfigFileName = path.Split(heaven.Spec.App.KubeconfigMountPath)
 
-		setKubeconfigVolume(heaven, podSpec, kubeconfigFileName)
+		setKubeconfigVolume(heaven, podSpec, kubeconfigFileName, c)
 
 		for i := 0; i < ntic; i++ {
 			setKubeconfigVolumeMount(&d.Spec.Template.Spec.InitContainers[i], baseMountPath)
@@ -722,12 +891,12 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(heaven *v1alpha1.Trish
 	return
 }
 
-func setKubeconfigVolume(heaven *v1alpha1.TrishankuHeaven, podSpec *corev1.PodSpec, filePath string) {
+func setKubeconfigVolume(heaven *v1alpha1.TrishankuHeaven, podSpec *corev1.PodSpec, filePath string, c configNames) {
 	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
 		Name: SECRET_KUBECONFIG_CONTROLLER,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: getConfigurationName(heaven, SECRET_KUBECONFIG_CONTROLLER),
+				SecretName: c.getConfigurationName(SECRET_KUBECONFIG_CONTROLLER),
 				Items: []corev1.KeyToPath{
 					{
 						Key:  certs.KeyKubeconfig,
@@ -748,10 +917,33 @@ func setKubeconfigVolumeMount(c *corev1.Container, kubeconfigMountPath string) {
 	})
 }
 
-func (r *TrishankuHeavenReconciler) ensureDeployment(ctx context.Context, heaven *v1alpha1.TrishankuHeaven) (err error) {
+func (r *TrishankuHeavenReconciler) ensureDeployment(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (err error) {
 	var d, rd *appsv1.Deployment
 
-	if rd, err = r.generateDeploymentFor(heaven); err != nil {
+	if heaven.Spec.Skip.App {
+		d = &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      heaven.Name,
+				Namespace: heaven.Namespace,
+			},
+		}
+
+		if err = r.Delete(ctx, d); apierrors.IsNotFound(err) {
+			err = nil // Ignore if deployment does not exist.
+		}
+
+		return
+	}
+
+	if heaven.Spec.Certificates.Controller == nil {
+		return fmt.Errorf("controller certificates not configured for %q", client.ObjectKeyFromObject(heaven).String())
+	}
+
+	if heaven.Spec.App == nil {
+		return fmt.Errorf("controller app not configured for %q", client.ObjectKeyFromObject(heaven).String())
+	}
+
+	if rd, err = r.generateDeploymentFor(ctx, heaven, c); err != nil {
 		return
 	}
 
@@ -789,5 +981,6 @@ func (r *TrishankuHeavenReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1alpha1.TrishankuHeaven{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Secret{}).
+		Owns(&corev1.ConfigMap{}).
 		Complete(r)
 }

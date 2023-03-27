@@ -137,15 +137,10 @@ func (cc *CertificateConfig) Generate() (*Certificate, error) {
 }
 
 func (c *Certificate) WriteToMap(m map[string][]byte) {
-	if c.IsCA {
-		m[KeyCACertificate] = c.CertificatePEM
-		m[KeyCAPrimaryKey] = c.PrivateKeyPEM
-	} else {
-		m[KeyCertificate] = c.CertificatePEM
-		m[KeyPrimaryKey] = c.PrivateKeyPEM
-		if c.CA != nil {
-			m[KeyCACertificate] = c.CA.CertificatePEM
-		}
+	m[KeyCertificate] = c.CertificatePEM
+	m[KeyPrimaryKey] = c.PrivateKeyPEM
+	if c.CA != nil {
+		m[KeyCACertificate] = c.CA.CertificatePEM
 	}
 }
 
