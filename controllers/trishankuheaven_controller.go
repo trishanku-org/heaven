@@ -428,7 +428,7 @@ if [ "$GITCD_REMOTE_REPO" == "" ]; then
 fi
 
 # Remote repo.
-git fetch || exit 1
+git show-branch "$GITCD_REMOTE_BRANCH_DATA" /dev/null 2>&1 || [ "$GITCD_CREATE_REMOTE_BRANCH" == "true" ] || git fetch || exit 1
 
 git config core.logAllRefUpdates always
 git config --unset-all remote.origin.fetch
