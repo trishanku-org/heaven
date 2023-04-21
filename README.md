@@ -2,6 +2,25 @@
 
 A set of Kubernetes controllers to configure/provision `trishankuheavens` for Kubernetes controllers.
 
+## Content
+
+- [Trishanku - Fork the Heavens](#trishanku---fork-the-heavens)
+- [Content](#content)
+- [Why](#why)
+  - [Human Interaction](#human-interaction)
+  - [Coordination amongst Kubernetes Controllers](#coordination-amongst-kubernetes-controllers)
+  - [Story](#story)
+    - [Summary in programming jargon](#summary-in-programming-jargon)
+    - [Moral of the story](#moral-of-the-story)
+- [What](#what)
+  - [Programmers coordinating using Git](#programmers-coordinating-using-git)
+  - [Kubernetes Controllers coordinating using Git](#kubernetes-controllers-coordinating-using-git)
+    - [More complex coordination](#more-complex-coordination)
+    - [Binary-compatibility for Kubernetes Controllers](#binary-compatibility-for-kubernetes-controllers)
+      - [Binary-compatibility for kube-apiserver](#binary-compatibility-for-kube-apiserver)
+- [How](#how)
+  - [Gitcd](#gitcd)
+
 ## Why
 
 [Kubernetes controllers](https://kubernetes.io/docs/concepts/architecture/controller/) are typically control-loops that reconcile some specification
@@ -123,3 +142,5 @@ The [`gitcd serve`](https://github.com/trishanku-org/gitcd/blob/main/cmd/serve.g
 The [`gitcd pull`](https://github.com/trishanku-org/gitcd/blob/main/cmd/pull.go) command continually merges the changes from a local branch to a remote branch.
 
 ![Simplified scenario of controllers coordinating using Gitcd](/docs/images/png/controllers-with-gitcd-simplified.png)
+
+YET TO BE COMPLETED
