@@ -1,0 +1,61 @@
+#! d2 --sketch controllers-with-gitcd-simplified.d2 ../png/controllers-with-gitcd-simplified.png
+direction: right
+classes: {
+    container: {
+        label: ""
+    }
+    controller: {
+        icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
+    }
+    apiserver: {
+        icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/svg/control_plane_components/labeled/api.svg
+    }
+    gitcd: {
+        icon: https://raw.githubusercontent.com/etcd-io/etcd/main/logos/etcd-glyph-color.png
+    }
+    storage: {
+        shape: cylinder
+        label: ""
+    }
+    etcd: {
+        shape: image
+        icon: https://raw.githubusercontent.com/etcd-io/etcd/main/logos/etcd-glyph-color.png
+    }
+    git: {
+        shape: image
+        icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+    }
+}
+
+p1 {
+    class: container
+
+    c: Controller 1 { class : controller }
+    kube-apiserver: { class : apiserver }
+    gitcd: { class: gitcd }
+    storage {
+        class: storage
+
+        git: { class : git}
+    }
+
+    c <-> kube-apiserver <-> gitcd <-> storage.git
+}
+
+p2 {
+    class: container
+
+    storage {
+        class: storage
+
+        git: { class : git}
+    }
+    gitcd: { class: gitcd }
+    kube-apiserver: { class : apiserver }
+    c: Controller 2 { class : controller }
+
+    storage.git <-> gitcd <-> kube-apiserver <-> c
+}
+
+p1.gitcd <- p2.storage.git: pull
+p2.gitcd <- p1.storage.git: pull

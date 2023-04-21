@@ -1,0 +1,49 @@
+#! d2 --sketch controller-binary-compatibility.d2 ../png/controller-binary-compatibility.png
+direction: right
+classes: {
+    container: {
+        label: ""
+    }
+    controller: {
+        icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
+    }
+    apiserver: {
+        shape: image
+        icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/svg/control_plane_components/labeled/api.svg
+    }
+    git: {
+        shape: image
+        icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+    }
+}
+
+p1 {
+    class: container
+
+    c: Controller 1 { class : controller }
+    api {
+        label: ""
+
+        kube-apiserver { class : apiserver }
+        git: { class : git }
+    }
+
+    c <-> api.kube-apiserver
+}
+
+p2 {
+    class: container
+
+    c: Controller 2 { class : controller }
+    api {
+        label: ""
+
+        git: { class : git }
+        kube-apiserver { class : apiserver }
+    }
+
+    api.kube-apiserver <-> c
+}
+
+p1.api.git -> p2.api.git
+p2.api.git -> p1.api.git

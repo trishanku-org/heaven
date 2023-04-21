@@ -1,0 +1,28 @@
+#! d2 --sketch programmers.d2 ../png/programmers.png
+direction: right
+classes: {
+    container: {
+        label: ""
+    }
+    git: {
+        shape: image
+        icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+    }
+}
+
+p1 {
+    class: container
+
+    Programmer 1: { shape : person }
+    git: { class : git }
+}
+
+p2 {
+    class: container
+
+    Programmer 2: { shape : person }
+    git: { class : git }
+}
+
+p1.git -> p2.git
+p2.git -> p1.git

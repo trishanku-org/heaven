@@ -1,0 +1,58 @@
+#! d2 --sketch apiserver-binary-compatibility.d2 ../png/apiserver-binary-compatibility.png
+direction: right
+classes: {
+    container: {
+        label: ""
+    }
+    controller: {
+        icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
+    }
+    apiserver: {
+        icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/svg/control_plane_components/labeled/api.svg
+    }
+    shim: {
+        shape: cylinder
+        label: ""
+    }
+    etcd: {
+        shape: image
+        icon: https://raw.githubusercontent.com/etcd-io/etcd/main/logos/etcd-glyph-color.png
+    }
+    git: {
+        shape: image
+        icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+    }
+}
+
+p1 {
+    class: container
+
+    c: Controller 1 { class : controller }
+    kube-apiserver: { class : apiserver }
+    shim {
+        class: shim
+
+        etcd shim: { class: etcd }
+        git: { class : git}
+    }
+
+    c <-> kube-apiserver <-> shim
+}
+
+p2 {
+    class: container
+
+    shim {
+        class: shim
+
+        etcd shim: { class: etcd }
+        git: { class : git}
+    }
+    kube-apiserver: { class : apiserver }
+    c: Controller 2 { class : controller }
+
+    shim <-> kube-apiserver <-> c
+}
+
+p1.shim.git -> p2.shim.git
+p2.shim.git -> p1.shim.git

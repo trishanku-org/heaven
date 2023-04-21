@@ -1,0 +1,24 @@
+#! d2 --sketch controllers.d2 ../png/controllers.png
+direction: right
+
+classes {
+    controller: {
+        icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
+    }
+}
+
+kube-apiserver {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/svg/control_plane_components/labeled/api.svg
+}
+
+etcd {
+    shape: cylinder
+    icon: https://raw.githubusercontent.com/etcd-io/etcd/main/logos/etcd-glyph-color.svg
+}
+
+Controller 1 { class: controller }
+Controller 2 { class: controller }
+
+Controller 1 <-> kube-apiserver
+Controller 2 <-> kube-apiserver
+kube-apiserver <-> etcd
