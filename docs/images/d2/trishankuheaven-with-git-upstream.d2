@@ -1,0 +1,214 @@
+# ! d2 --sketch trishankuheaven-with-git-upstream.d2 ../png/trishankuheaven-with-git-upstream.png
+direction: down
+
+classes: {
+  crd: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/crd-128.png
+  }
+  kubernetes: {
+    icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
+  }
+  deploy: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/deploy-128.png
+  }
+  etcd: {
+    icon: https://raw.githubusercontent.com/etcd-io/etcd/main/logos/etcd-glyph-color.png
+  }
+  apiserver: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/svg/control_plane_components/labeled/api.svg
+  }
+  git: {
+    icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+  }
+  branch: {
+    shape: stored_data
+    icon: ../png/9026745_git_branch_thin_icon.png
+  }
+  dashed_package: {
+    shape: package
+    style: {stroke-dash: 3}
+  }
+}
+
+TrishankuHeaven: {
+  class: crd
+  style: {multiple: true}
+
+  yaml: |yaml
+    apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+    kind: TrishankuHeaven
+    metadata:
+      name: controller
+    spec:
+      certificates:
+        # Certificates for the sidecar trishanku  Kubernetes control-plane.
+        # ...
+      gitcd:
+        remoteRepo: # ...
+        branches:
+          local:
+            data: controller/data
+            metadata: controller/metadata
+          remote:
+            data: main/data
+            metadata: main/metadata
+        pull:
+          # ...
+          tickerDuration: # ...
+        pullRequest:
+          # ...
+          tickerDuration: # ...
+      app:
+        replicas: 1
+        podTemplate:
+          # ...
+          spec:
+            # ...
+            initContainers:
+            - name: controller-init
+              # ...
+            # ...
+            containers:
+            - name: controller
+              # ...
+            # ...
+  |
+}
+
+c: TrishankuHeaven Controller {class: kubernetes}
+
+k: {
+  label: ""
+  style: {multiple: true}
+
+  d: Deployment: {
+    class: deploy
+
+    ic: InitContainers {
+      shape: queue
+      git-pre: {class: git}
+      gitcd-init: {class: git}
+      git-post: {class: git}
+      git-pre-pr: {class: git}
+      controller-init
+    }
+
+    c: Containers {
+      controller: {class: kubernetes}
+      kube-apiserver: {class: apiserver}
+
+      gitcd: {
+        class: etcd
+
+        git: {
+          label: ""
+          shape: image
+          class: git
+        }
+      }
+
+      gitcd-pr: {
+        class: etcd
+
+        git: {
+          label: ""
+          shape: image
+          class: git
+        }
+      }
+    }
+
+    v: Volumes {
+      git: {
+        shape: cylinder
+        icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+
+        controller: {
+          class: dashed_package
+
+          data: {class: branch}
+          metadata: {class: branch}
+        }
+
+        main: {
+          class: dashed_package
+
+          data: {class: branch}
+          metadata: {class: branch}
+        }
+      }
+      git-pr: {
+        shape: cylinder
+        icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+
+        controller: {
+          class: dashed_package
+
+          data: {class: branch}
+          metadata: {class: branch}
+        }
+
+        main: {
+          class: dashed_package
+
+          data: {class: branch}
+          metadata: {class: branch}
+        }
+      }
+    }
+
+    ic.git-pre <-> v.git: init
+    ic.gitcd-init <-> v.git: init
+
+    c.controller <-> c.kube-apiserver
+    c.kube-apiserver <-> c.gitcd
+    c.gitcd <-> v.git
+    c.gitcd-pr <-> v.git-pr
+  }
+
+  Certificates: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/secret-128.png
+    style: {multiple: true}
+  }
+
+  Entrypoints: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/cm-128.png
+  }
+
+  Certificates -> d: used by
+  Entrypoints -> d: used by
+}
+
+upstream: {
+  shape: cylinder
+  class: git
+
+  controller: {
+    class: dashed_package
+
+    data: {class: branch}
+    metadata: {class: branch}
+  }
+
+  main: {
+    class: dashed_package
+
+    data: {class: branch}
+    metadata: {class: branch}
+  }
+}
+
+k.d.ic.git-pre -> upstream: fetch
+k.d.ic.git-post -> upstream: push
+k.d.ic.git-pre-pr -> upstream: fetch
+
+k.d.c.gitcd -> upstream.main: fetch
+k.d.c.gitcd -> upstream.controller: push
+k.d.c.gitcd-pr -> upstream.controller: fetch
+k.d.c.gitcd-pr -> upstream.main: push
+
+TrishankuHeaven <-> c: reconciles
+
+c <-> k.d: reconciles
+c <-> k.Certificates: reconciles
+c <-> k.Entrypoints: reconciles

@@ -1,0 +1,122 @@
+# ! d2 --sketch trishankuheaven-simplified.d2 ../png/trishankuheaven-simplified.png
+direction: right
+
+classes: {
+  crd: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/crd-128.png
+  }
+  kubernetes: {
+    icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
+  }
+  deploy: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/deploy-128.png
+  }
+  etcd: {
+    icon: https://raw.githubusercontent.com/etcd-io/etcd/main/logos/etcd-glyph-color.png
+  }
+  apiserver: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/svg/control_plane_components/labeled/api.svg
+  }
+  git: {
+    icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+  }
+}
+
+TrishankuHeaven: {
+  class: crd
+  style: {multiple: true}
+
+  yaml: |yaml
+    apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+    kind: TrishankuHeaven
+    metadata:
+      name: controller
+    spec:
+      certificates:
+        # Certificates for the sidecar trishanku  Kubernetes control-plane.
+        # ...
+      gitcd:
+        branches:
+          local:
+            data: controller/data
+            metadata: controller/metadata
+      app:
+        replicas: 1
+        podTemplate:
+          # ...
+          spec:
+            # ...
+            initContainers:
+            - name: controller-init
+              # ...
+            # ...
+            containers:
+            - name: controller
+              # ...
+            # ...
+  |
+}
+
+c: TrishankuHeaven Controller {class: kubernetes}
+
+k: {
+  label: ""
+  style: {multiple: true}
+  Deployment: {
+    class: deploy
+
+    ic: InitContainers {
+      shape: queue
+
+      git-pre: {class: git}
+      gitcd-init: {class: git}
+      controller-init
+    }
+
+    c: Containers {
+      controller: {class: kubernetes}
+      kube-apiserver: {class: apiserver}
+      gitcd: {
+        class: etcd
+
+        git: {
+          label: ""
+          shape: image
+          class: git
+        }
+      }
+    }
+
+    v: Volumes {
+      git: {
+        shape: cylinder
+        icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+      }
+    }
+
+    ic.git-pre <-> v.git
+    ic.gitcd-init <-> v.git
+
+    c.controller <-> c.kube-apiserver
+    c.kube-apiserver <-> c.gitcd
+    c.gitcd <-> v.git
+  }
+
+  Certificates: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/secret-128.png
+    style: {multiple: true}
+  }
+
+  Entrypoints: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/cm-128.png
+  }
+
+  Certificates -> Deployment: used by
+  Entrypoints -> Deployment: used by
+}
+
+TrishankuHeaven <-> c: reconciles
+
+c <-> k.Deployment: reconciles
+c <-> k.Certificates: reconciles
+c <-> k.Entrypoints: reconciles

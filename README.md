@@ -24,12 +24,12 @@ A set of Kubernetes controllers to configure/provision `trishankuheavens` for Ku
 ## Why
 
 [Kubernetes controllers](https://kubernetes.io/docs/concepts/architecture/controller/) are typically control-loops that reconcile some specification
-captured in a [Kubernetes objects](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/) with the corresponding downstream state.
+captured in a [Kubernetes object](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/) with the corresponding downstream state.
 The Kubernetes objects, which capture both the specifications and the status of some object the particular controller is responsible for,
 act as a point of coordination between the specification, the status and the action required to reconcile the two.
 Typically, the source of specification is external to the particular controller and the controller is responsible
 for keeping the status up-to-date and taking actions to reconcile the status with the specification.
-The Kubernetes resources are documents hosted on the [`kube-apiserver`](https://kubernetes.io/docs/concepts/overview/components/#kube-apiserver)
+The Kubernetes objects are documents hosted on the [`kube-apiserver`](https://kubernetes.io/docs/concepts/overview/components/#kube-apiserver)
 which in turn relies on storage components such as [`etcd`](https://kubernetes.io/docs/concepts/overview/components/#etcd).
 This architecture is designed to enable [eventual consistency](https://en.wikipedia.org/wiki/Eventual_consistency).
 
@@ -60,27 +60,25 @@ eventually consistent model for coordination between specialised controllers.
 
 Once upon a time, [Triśaṅku](https://en.wikipedia.org/wiki/Trishanku), a king, wanted to ascend to the heavens while still in his mortal body.
 When he requested the sages to perform a [yajña](https://en.wikipedia.org/wiki/Yajna) to make this happen,
-he was cursed and disgraced by the sages, including the royal preceptor, sage [Vasiṣṭha](https://en.wikipedia.org/wiki/Vasishtha),
+he was cursed and disgraced by them, including the royal preceptor, sage [Vasiṣṭha](https://en.wikipedia.org/wiki/Vasishtha),
 saying that only entering the heavens after shedding the mortal body was [dharma](https://en.wikipedia.org/wiki/Dharma) and doing so before that was not.
 Sage [Viśvāmitra](https://en.wikipedia.org/wiki/Vishvamitra), however, agreed to perform the yajña.
-As the yajña proceeded, Trishanku starte ascending to the heavens,
-but at the gates, he was kicked out by [Indra](https://en.wikipedia.org/wiki/Indra), the king of Gods.
-Upon seeing Triśaṅku falling from the heavens head first, Viśvāmitra,
-vowed to fullfil his promise to Triśaṅku and proceeded to create an
-alternative heavens in the southern sky, where Triśaṅku had fallen,
-and install Triśaṅku as the alternative Indra there.
-On Indra's pleading, [Bṛhaspati](https://en.wikipedia.org/wiki/Brihaspati), the preceptor of Gods,
-managed to convince Viśvāmitra to abandon this project before the universe could fall into chaos,
+As the yajña proceeded, Trishanku started ascending to the heavens,
+but he was kicked out at the gates by [Indra](https://en.wikipedia.org/wiki/Indra), the king of Gods.
+Upon seeing Triśaṅku fall from the heavens head first, Viśvāmitra vowed to fullfil his promise to Triśaṅku and proceeded to create an
+alternative heavens in the southern sky (where Triśaṅku had fallen) and install Triśaṅku as the rival Indra there.
+On a panicked Indra's pleading, [Bṛhaspati](https://en.wikipedia.org/wiki/Brihaspati), the preceptor of Gods,
+managed to convince Viśvāmitra to abandon this project lest the universe fall into chaos,
 but on the condition that the nascent alternative heavens around the upside-down Triśaṅku can remain in the southern sky.
-The modern-day constellation [Crux](https://en.wikipedia.org/wiki/Crux), also known as the Southern Cross forms part of this abandoned alternative heavens.
+The modern-day constellation [Crux](https://en.wikipedia.org/wiki/Crux) (also known as the Southern Cross) forms a part of this abandoned alternative heavens.
 
 #### Summary in programming jargon
 
-Viśvāmitra raised a [pull request](https://en.wikipedia.org/wiki/Distributed_version_control#Pull_requests) (Triśaṅku) to the heavens which was rejected by Indra.
+Viśvāmitra's [pull request](https://en.wikipedia.org/wiki/Distributed_version_control#Pull_requests) (Triśaṅku) to the heavens was rejected by Indra.
 So, Viśvāmitra [forked](https://en.wikipedia.org/wiki/Fork_(software_development)) the heavens.
-On pleading from Indra, Brihaspati pursuaded Viśvāmitra to abandon the project,
-but not without the changes from the fork being
-[merged](https://en.wikipedia.org/wiki/Merge_(version_control)) as a proof of concept for an alternaive approach.
+On pleading from Indra, Brihaspati pursuaded Viśvāmitra to stop working on the fork further,
+but not without the existing changes from the fork being
+[merged](https://en.wikipedia.org/wiki/Merge_(version_control)) as a proof of concept for an alternative implementation.
 
 #### Moral of the story
 
@@ -142,5 +140,63 @@ The [`gitcd serve`](https://github.com/trishanku-org/gitcd/blob/main/cmd/serve.g
 The [`gitcd pull`](https://github.com/trishanku-org/gitcd/blob/main/cmd/pull.go) command continually merges the changes from a local branch to a remote branch.
 
 ![Simplified scenario of controllers coordinating using Gitcd](/docs/images/png/controllers-with-gitcd-simplified.png)
+
+### TrishankuHeaven
+
+The `TrishankuHeaven` controller helps setup a `TrishankuHeaven`
+in a Kubernetes [`Pod`](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/),
+i.e., coordinate using Git like human computer programmers instead of a centralised Kubernetes control-plane,
+for existing Kubernetes controllers with full binary-compatibility declaratively.
+The host for the `pod` could be any Kubernetes cluster that the required
+network connectivity that the target controller (and possibly the Git-based coordination) requires.
+
+The [`TrishankuHeaven`](https://github.com/trishanku-org/heaven/blob/main/api/v1alpha1/trishankuheaven_types.go) is a Kubernetes [custom resource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/),
+which captures, in its specification section,
+the `PodTemplate` for the Kubernetes controller along with the required Git configuration to be used for co-ordination.
+The `TrishankuHeaven` [controller](https://github.com/trishanku-org/heaven/blob/main/controllers/trishankuheaven_controller.go)
+then acts on this object to create and maintain a `Deployment` for the controller with the specified `PodTemplate`,
+but enhanced with additional containers (initial and normal) to act as a binary-compatible triśaṅku heaven,
+so that the controller can continue to work with its own local sidecar `kube-apiserver`, with the other `gitcd` sidecar containers helping with the coordination with the other controllers via Git.
+
+![Simplified TrishankuHeaven](docs/images/png/trishankuheaven-simplified.png)
+
+The additional init-containers help prepare the Git repository to be used as a backend for `gitcd`.
+
+- The container `git-pre` initialises or clones the Git repo if necessary.
+- The container `gitcd-init` initialises the `gitcd` data and metadata branches in the Git repository.
+
+The additional containers help create a local Kubernetes environment for the target controller which is backed by the Git repository.
+
+- The container `gitcd` acts as an `etcd` shim which is backed by the Git repository.
+- The container `kube-apiserver` uses the `gitcd` container as the storage backend and acts as a local Kubernetes control-plane for the target controller.
+The target controller is configured to talk to this local `kube-apiserver` instead of the cluster's `kube-apiserver`.
+
+This way, existing Kubernetes controllers can coordinate amongst one another while working independently without the need for a central control-plane.
+
+#### Coordination using an upstream Git repository
+
+![TrishankuHeaven coordination with upstream Git ](docs/images/png/trishankuheaven-with-git-upstream.png)
+
+Since Git does not mandate any particular way to structure the coordination, it is possible to setup any suitable structure,
+for example, via an upstream Git repository as shown above.
+
+In this scenario, a couple of additional init-containers are used to setup the coordination using the upstream Git repository.
+
+- The container `git-post` pushes the newly initialised `gitcd` data and metadata branches for the `controller` (and possibly the upstream `main` data and metadata branch that act as the point of coordination).
+- The container `git-pre-pr` initialises a new clone of the upstream Git repository for the purpose of automatically merging changes
+from the `controller` data and metadata branches into the `main` data and metadata branches.
+
+An additional container `gitcd-pr` is also used to continually fetch and merge changes from the `controller` data and metadata branches into the `main` data and metadata branches and push to the upstream Git repository.
+The `gitcd` container already fetches and merge the changes continually from the `main` data and metadata branches into the `controller` data and metadata branches and push to the upstream Git repository.
+This completes the circle of coordination.
+The `gitcd` and `gitcd-pr` controllers use their own clones of the upstream Git repository to avoid the synchronisation burden between them which would be required if they shared the same Git repository.
+
+#### Headless Kubernetes Cluster
+
+This approach for coordinating Kuberenetes controllers without the need for a central control-plane creates the possibility of a full decentralised Kubernetes cluster where each component/controller works independently
+while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges when without a central control-plane.
+Perhaps such a fully decentralised Kubernetes cluster could be called a *headless* Kubernetes cluster.
+
+![Headless Kubernetes Cluster ](docs/images/png/headless-kubernetes.png)
 
 YET TO BE COMPLETED

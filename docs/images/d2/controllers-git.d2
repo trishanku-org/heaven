@@ -1,31 +1,29 @@
-#! d2 --sketch controllers-git.d2 ../png/controllers-git.png
+# ! d2 --sketch controllers-git.d2 ../png/controllers-git.png
 direction: right
 classes: {
-    container: {
-        label: ""
-    }
-    controller: {
-        icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
-    }
-    git: {
-        shape: image
-        icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
-    }
+  container: {
+    label: ""
+  }
+  controller: {
+    icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
+  }
+  git: {
+    shape: image
+    icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+  }
 }
 
-p1 {
-    class: container
+c1: Controller 1 {
+  class: controller
 
-    Controller 1: { class : controller }
-    git: { class : git }
+  git: {class: git}
 }
 
-p2 {
-    class: container
+c2: Controller 2 {
+  class: controller
 
-    Controller 2: { class : controller }
-    git: { class : git }
+  git: {class: git}
 }
 
-p1.git -> p2.git
-p2.git -> p1.git
+c1.git -> c2.git
+c2.git -> c1.git

@@ -158,8 +158,8 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-build-d2:
-	./hack/build-d2.sh docs/images/d2
+format-and-build-d2:
+	./hack/format-and-build-d2.sh docs/images/d2
 
 revendor:
 	go mod vendor -v
