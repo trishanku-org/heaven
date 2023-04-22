@@ -79,6 +79,7 @@ c: TrishankuHeaven Controller {class: kubernetes}
 
 k: {
   label: ""
+  class: dashed_package
   style: {multiple: true}
 
   d: Deployment: {
@@ -108,7 +109,7 @@ k: {
       }
 
       gitcd-pr: {
-        class: etcd
+        class: git
 
         git: {
           label: ""
@@ -116,6 +117,12 @@ k: {
           class: git
         }
       }
+
+      events etcd: {class: etcd}
+
+      controller <-> kube-apiserver
+      kube-apiserver <-> gitcd
+      kube-apiserver <-> events etcd: events
     }
 
     v: Volumes {
@@ -160,8 +167,6 @@ k: {
     ic.git-pre <-> v.git: init
     ic.gitcd-init <-> v.git: init
 
-    c.controller <-> c.kube-apiserver
-    c.kube-apiserver <-> c.gitcd
     c.gitcd <-> v.git
     c.gitcd-pr <-> v.git-pr
   }

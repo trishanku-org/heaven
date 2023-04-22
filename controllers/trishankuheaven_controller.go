@@ -124,7 +124,7 @@ const (
 	VOLUME_HOME_PR               = "home-pr"
 	VOLUME_TEMP                  = "temp"
 
-	CONTAINER_ETCD       = "etcd"
+	CONTAINER_ETCD       = "events-etcd"
 	CONTAINER_GIT_PRE    = "git-pre"
 	CONTAINER_GITCD_INIT = "gitcd-init"
 	CONTAINER_GIT_POST   = "git-post"

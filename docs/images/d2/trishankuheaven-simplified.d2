@@ -20,6 +20,10 @@ classes: {
   git: {
     icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
   }
+  dashed_package: {
+    shape: package
+    style: {stroke-dash: 3}
+  }
 }
 
 TrishankuHeaven: {
@@ -61,6 +65,7 @@ c: TrishankuHeaven Controller {class: kubernetes}
 
 k: {
   label: ""
+  class: dashed_package
   style: {multiple: true}
   Deployment: {
     class: deploy
@@ -85,6 +90,7 @@ k: {
           class: git
         }
       }
+      events etcd: {class: etcd}
     }
 
     v: Volumes {
@@ -100,6 +106,7 @@ k: {
     c.controller <-> c.kube-apiserver
     c.kube-apiserver <-> c.gitcd
     c.gitcd <-> v.git
+    c.kube-apiserver <-> c.events etcd: events
   }
 
   Certificates: {

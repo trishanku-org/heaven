@@ -170,6 +170,8 @@ The additional containers help create a local Kubernetes environment for the tar
 - The container `gitcd` acts as an `etcd` shim which is backed by the Git repository.
 - The container `kube-apiserver` uses the `gitcd` container as the storage backend and acts as a local Kubernetes control-plane for the target controller.
 The target controller is configured to talk to this local `kube-apiserver` instead of the cluster's `kube-apiserver`.
+- The container `events-etcd` hosts a single-member `etcd` cluster for the high-traffic and somewhat transient `event` objects,
+so that the `gitcd` instance is not overwhelmed.
 
 This way, existing Kubernetes controllers can coordinate amongst one another while working independently without the need for a central control-plane.
 
@@ -197,6 +199,6 @@ This approach for coordinating Kuberenetes controllers without the need for a ce
 while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges when without a central control-plane.
 Perhaps such a fully decentralised Kubernetes cluster could be called a *headless* Kubernetes cluster.
 
-![Headless Kubernetes Cluster ](docs/images/png/headless-kubernetes.png)
+![Headless Kubernetes Cluster ](docs/images/svg/headless-kubernetes.svg)
 
 YET TO BE COMPLETED
