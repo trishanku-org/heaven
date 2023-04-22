@@ -20,6 +20,9 @@ A set of Kubernetes controllers to configure/provision `trishankuheavens` for Ku
       - [Binary-compatibility for kube-apiserver](#binary-compatibility-for-kube-apiserver)
 - [How](#how)
   - [Gitcd](#gitcd)
+  - [TrishankuHeaven](#trishankuheaven)
+    - [Coordination using an upstream Git repository](#coordination-using-an-upstream-git-repository)
+    - [Headless Kubernetes Cluster](#headless-kubernetes-cluster)
 
 ## Why
 
