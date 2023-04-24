@@ -1,4 +1,5 @@
-# ! d2 --sketch --bundle --animate-interval=7000  headless-kubernetes.d2 ../svg/headless-kubernetes.svg
+# ! d2 --sketch --animate-interval=3000 headless-kubernetes.d2 ../svg/headless-kubernetes.svg
+# ! d2 --sketch headless-kubernetes.d2 ../pptx/headless-kubernetes.pptx
 direction: down
 
 classes: {
@@ -137,118 +138,151 @@ steps: {
         }
       }
     }
-  }
-  2: {
-    back.link: 1.svg
-    next.link: 3.svg
 
     hc.tc.kcm: kube-controller-manager {
       class: crd
-      style: {fill: orange}
+      style: {
+        fill: orange
+        opacity: 0.0
+      }
     }
-  }
-  3: {
-    hc.tc.kcm.style.fill: transparent
-    back.link: 2.svg
-    next.link: 4.svg
 
     hc.dc.kcm: kube-controller-manager {
       class: deploy
-      style: {fill: orange}
+      style: {
+        fill: orange
+        opacity: 0.0
+      }
     }
-  }
-  4: {
-    hc.dc.kcm.style.fill: transparent
-    back.link: 3.svg
-    next.link: 5.svg
 
     hc.node.kcm: kube-controller-manager {
       class: pod
-      style: {fill: orange}
+      style: {
+        fill: orange
+        opacity: 0.0
+      }
 
-      kcm: kube-controller-manager {class: kcm}
-      api: kube-apiserver {class: apiserver}
+      kcm: kube-controller-manager {
+        class: kcm
+        style: {opacity: 0.0}
+      }
+      api: kube-apiserver {
+        class: apiserver
+        style: {opacity: 0.0}
+      }
       gitcd: {
         class: etcd
+        style: {opacity: 0.0}
 
         git: {
           class: git
           shape: cylinder
+          style: {opacity: 0.0}
         }
       }
     }
 
-    hc.node.kcm.gitcd <- upstream.mk.main: fetch {style: {animated: true}}
-    hc.node.kcm.gitcd -> upstream.mk.kcm: push {style: {animated: true}}
-    hc.node.kcm.gitcd <- upstream.mk.kcm: fetch {style: {animated: true}}
-    hc.node.kcm.gitcd -> upstream.mk.main: push {style: {animated: true}}
-
-    upstream.mk.kcm.style.fill: orange
-    upstream.mk.main.style.fill: orange
-  }
-  5: {
-    hc.node.kcm.style.fill: transparent
-    upstream.mk.kcm.style.fill: transparent
-    upstream.mk.main.style.fill: transparent
-    upstream.mk.kcm.style.fill: transparent
-    back.link: 4.svg
-    next.link: 6.svg
+    hc.node.kcm.gitcd <- upstream.mk.main: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    hc.node.kcm.gitcd -> upstream.mk.kcm: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    hc.node.kcm.gitcd <- upstream.mk.kcm: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    hc.node.kcm.gitcd -> upstream.mk.main: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
 
     hc.tc.scheduler: kube-scheduler {
       class: crd
-      style: {fill: orange}
+      style: {
+        fill: orange
+        opacity: 0.0
+      }
     }
-  }
-  6: {
-    hc.tc.scheduler.style.fill: transparent
-    back.link: 5.svg
-    next.link: 7.svg
 
     hc.dc.scheduler: kube-scheduler {
       class: deploy
-      style: {fill: orange}
+      style: {
+        fill: orange
+        opacity: 0.0
+      }
     }
-  }
-  7: {
-    hc.dc.scheduler.style.fill: transparent
-    back.link: 6.svg
-    next.link: 8.svg
 
     hc.node.scheduler: kube-scheduler {
       class: pod
-      style: {fill: orange}
+      style: {
+        fill: orange
+        opacity: 0.0
+      }
 
-      scheduler: kube-scheduler {class: scheduler}
-      api: kube-apiserver {class: apiserver}
+      scheduler: kube-scheduler {
+        class: scheduler
+        style: {opacity: 0.0}
+      }
+      api: kube-apiserver {
+        class: apiserver
+        style: {opacity: 0.0}
+      }
       gitcd: {
         class: etcd
+        style: {opacity: 0.0}
 
         git: {
           class: git
           shape: cylinder
+          style: {opacity: 0.0}
         }
       }
     }
 
-    hc.node.scheduler.gitcd <- upstream.mk.main: fetch {style: {animated: true}}
-    hc.node.scheduler.gitcd -> upstream.sk.scheduler: push {style: {animated: true}}
-    hc.node.scheduler.gitcd <- upstream.sk.scheduler: fetch {style: {animated: true}}
-    hc.node.scheduler.gitcd -> upstream.mk.main: push {style: {animated: true}}
-
-    upstream.sk.scheduler.style.fill: orange
-    upstream.mk.main.style.fill: orange
-  }
-  8: {
-    hc.node.scheduler.style.fill: transparent
-    upstream.sk.scheduler.style.fill: transparent
-    upstream.mk.main.style.fill: transparent
-    upstream.sk.scheduler.style.fill: transparent
-    back.link: 7.svg
-    next.link: 9.svg
+    hc.node.scheduler.gitcd <- upstream.mk.main: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    hc.node.scheduler.gitcd -> upstream.sk.scheduler: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    hc.node.scheduler.gitcd <- upstream.sk.scheduler: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    hc.node.scheduler.gitcd -> upstream.mk.main: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
 
     headless: Headless Cluster {
+      style: {opacity: 0.0}
+
       node: Virtual Machine {
-        style: {fill: orange}
+        style: {
+          fill: orange
+          opacity: 0.0
+        }
 
         kubelet: kubelet {
           class: kubelet
@@ -305,6 +339,85 @@ steps: {
       }
     }
   }
+  2: {
+    back.link: 1.svg
+    next.link: 3.svg
+
+    hc.tc.kcm.style.opacity: 1.0
+  }
+  3: {
+    hc.tc.kcm.style.fill: transparent
+    back.link: 2.svg
+    next.link: 4.svg
+
+    hc.dc.kcm.style.opacity: 1.0
+  }
+  4: {
+    hc.dc.kcm.style.fill: transparent
+    back.link: 3.svg
+    next.link: 5.svg
+
+    hc.node.kcm.style.opacity: 1.0
+    hc.node.kcm.kcm.style.opacity: 1.0
+    hc.node.kcm.api.style.opacity: 1.0
+    hc.node.kcm.gitcd.style.opacity: 1.0
+    hc.node.kcm.gitcd.git.style.opacity: 1.0
+
+    (hc.node.kcm.gitcd <- upstream.mk.main)[0].style.opacity: 1.0
+    (hc.node.kcm.gitcd -> upstream.mk.kcm)[0].style.opacity: 1.0
+    (hc.node.kcm.gitcd <- upstream.mk.kcm)[0].style.opacity: 1.0
+    (hc.node.kcm.gitcd -> upstream.mk.main)[0].style.opacity: 1.0
+
+    upstream.mk.kcm.style.fill: orange
+    upstream.mk.main.style.fill: orange
+  }
+  5: {
+    hc.node.kcm.style.fill: transparent
+    upstream.mk.kcm.style.fill: transparent
+    upstream.mk.main.style.fill: transparent
+    upstream.mk.kcm.style.fill: transparent
+    back.link: 4.svg
+    next.link: 6.svg
+
+    hc.tc.scheduler.style.opacity: 1.0
+  }
+  6: {
+    hc.tc.scheduler.style.fill: transparent
+    back.link: 5.svg
+    next.link: 7.svg
+
+    hc.dc.scheduler.style.opacity: 1.0
+  }
+  7: {
+    hc.dc.scheduler.style.fill: transparent
+    back.link: 6.svg
+    next.link: 8.svg
+
+    hc.node.scheduler.style.opacity: 1.0
+    hc.node.scheduler.scheduler.style.opacity: 1.0
+    hc.node.scheduler.api.style.opacity: 1.0
+    hc.node.scheduler.gitcd.style.opacity: 1.0
+    hc.node.scheduler.gitcd.git.style.opacity: 1.0
+
+    (hc.node.scheduler.gitcd <- upstream.mk.main)[0].style.opacity: 1.0
+    (hc.node.scheduler.gitcd -> upstream.sk.scheduler)[0].style.opacity: 1.0
+    (hc.node.scheduler.gitcd <- upstream.sk.scheduler)[0].style.opacity: 1.0
+    (hc.node.scheduler.gitcd -> upstream.mk.main)[0].style.opacity: 1.0
+
+    upstream.sk.scheduler.style.fill: orange
+    upstream.mk.main.style.fill: orange
+  }
+  8: {
+    hc.node.scheduler.style.fill: transparent
+    upstream.sk.scheduler.style.fill: transparent
+    upstream.mk.main.style.fill: transparent
+    upstream.sk.scheduler.style.fill: transparent
+    back.link: 7.svg
+    next.link: 9.svg
+
+    headless.style.opacity: 1.0
+    headless.node.style.opacity: 1.0
+  }
   9: {
     headless.node.style.fill: transparent
     back.link: 8.svg
@@ -314,10 +427,12 @@ steps: {
     headless.node.api.style.opacity: 1.0
     headless.node.gitcd.style.opacity: 1.0
     headless.node.gitcd.git.style.opacity: 1.0
+
     (headless.node.gitcd <- upstream.mk.main)[0].style.opacity: 1.0
     (headless.node.gitcd -> upstream.sk.kubelet)[0].style.opacity: 1.0
     (headless.node.gitcd -> upstream.mk.main)[0].style.opacity: 1.0
     (headless.node.gitcd <- upstream.sk.kubelet)[0].style.opacity: 1.0
+
     upstream.sk.kubelet.style.fill: orange
     upstream.mk.main.style.fill: orange
   }
