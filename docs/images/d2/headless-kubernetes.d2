@@ -6,9 +6,11 @@ classes: {
     icon: https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg
   }
   apiserver: {
+    style: {fill: transparent}
     icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/svg/control_plane_components/labeled/api.svg
   }
   deploy: {
+    style: {fill: transparent}
     icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/deploy-128.png
   }
   node: {
@@ -16,31 +18,66 @@ classes: {
   }
   kubelet: {
     icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/control_plane_components/labeled/kubelet-128.png
+    style: {fill: transparent}
   }
   pod: {
     icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/pod-128.png
+    style: {fill: transparent}
   }
   crd: {
     icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/resources/labeled/crd-128.png
+    style: {fill: transparent}
+  }
+  kcm: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/control_plane_components/labeled/c-m-128.png
+    style: {fill: transparent}
+  }
+  scheduler: {
+    icon: https://raw.githubusercontent.com/kubernetes/community/master/icons/png/control_plane_components/labeled/sched-128.png
+    style: {fill: transparent}
   }
   etcd: {
     icon: https://raw.githubusercontent.com/etcd-io/etcd/main/logos/etcd-glyph-color.png
+    style: {fill: transparent}
   }
   git: {
     icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
+    style: {fill: transparent}
   }
-  dashed_package: {
-    shape: package
-    style: {stroke-dash: 3}
+  invisible: {
+    style: {
+      opacity: 0.0
+    }
+  }
+  package: {
+    style: {fill: transparent}
   }
   branch: {
     shape: stored_data
     icon: ../png/9026745_git_branch_thin_icon.png
+    style: {fill: transparent}
   }
+}
+
+Home: {
+  shape: circle
+  near: bottom-center
+  link: steps.1
 }
 
 steps: {
   1: {
+    back: back {
+      shape: circle
+      near: bottom-left
+      link: 11.svg
+    }
+    next: Next {
+      shape: circle
+      near: bottom-right
+      link: 2.svg
+    }
+
     hc: Host Cluster {
       class: kubernetes
 
@@ -48,290 +85,274 @@ steps: {
       dc: Deployment Controller {class: deploy}
       dc -> api
 
+      tc: TrishankuHeaven Controller {class: crd}
+      tc -> api
+
       node: Node {
         class: node
+        style: {fill: transparent}
 
         kubelet: {class: kubelet}
         kubelet -> _.api
       }
     }
-  }
-  2: {
-    hc.dc.tc: TrishankuHeaven Controller {
-      class: deploy
-      style: {fill: orange}
-    }
-  }
-  3: {
-    hc.dc.tc.style.fill: transparent
-
-    hc.node.tc: TrishankuHeaven Controller {
-      class: pod
-      style: {fill: orange}
-    }
-    hc.node.tc -> hc.api
-  }
-  4: {
-    hc.node.tc.style.fill: transparent
 
     upstream: {
       shape: cylinder
       class: git
-      style: {fill: orange}
+
+      mk: {
+        class: invisible
+
+        main: {
+          class: package
+
+          data: {class: branch}
+          metadata: {class: branch}
+        }
+
+        kcm: {
+          class: package
+
+          data: {class: branch}
+          metadata: {class: branch}
+        }
+      }
+
+      sk: {
+        class: invisible
+
+        scheduler: {
+          class: package
+
+          data: {class: branch}
+          metadata: {class: branch}
+        }
+
+        kubelet: {
+          class: package
+
+          data: {class: branch}
+          metadata: {class: branch}
+        }
+      }
     }
   }
-  5: {
-    upstream.style.fill: transparent
+  2: {
+    back.link: 1.svg
+    next.link: 3.svg
 
-    hc.node.tc.kcm: kube-controller-manager {
+    hc.tc.kcm: kube-controller-manager {
       class: crd
       style: {fill: orange}
     }
   }
-  6: {
-    hc.node.tc.kcm.style.fill: transparent
+  3: {
+    hc.tc.kcm.style.fill: transparent
+    back.link: 2.svg
+    next.link: 4.svg
 
     hc.dc.kcm: kube-controller-manager {
       class: deploy
       style: {fill: orange}
     }
   }
-  7: {
+  4: {
     hc.dc.kcm.style.fill: transparent
+    back.link: 3.svg
+    next.link: 5.svg
 
     hc.node.kcm: kube-controller-manager {
       class: pod
       style: {fill: orange}
+
+      kcm: kube-controller-manager {class: kcm}
+      api: kube-apiserver {class: apiserver}
+      gitcd: {
+        class: etcd
+
+        git: {
+          class: git
+          shape: cylinder
+        }
+      }
     }
+
+    hc.node.kcm.gitcd <- upstream.mk.main: fetch {style: {animated: true}}
+    hc.node.kcm.gitcd -> upstream.mk.kcm: push {style: {animated: true}}
+    hc.node.kcm.gitcd <- upstream.mk.kcm: fetch {style: {animated: true}}
+    hc.node.kcm.gitcd -> upstream.mk.main: push {style: {animated: true}}
+
+    upstream.mk.kcm.style.fill: orange
+    upstream.mk.main.style.fill: orange
   }
-  8: {
+  5: {
     hc.node.kcm.style.fill: transparent
+    upstream.mk.kcm.style.fill: transparent
+    upstream.mk.main.style.fill: transparent
+    upstream.mk.kcm.style.fill: transparent
+    back.link: 4.svg
+    next.link: 6.svg
 
-    hc.node.kcm.events etcd: {
-      class: etcd
-      style: {fill: orange}
-    }
-    hc.node.kcm.gitcd: {
-      class: etcd
-      style: {fill: orange}
-
-      git: {
-        class: git
-        shape: cylinder
-      }
-    }
-    hc.node.kcm.gitcd-pr: {
-      class: git
-      style: {fill: orange}
-
-      git: {
-        class: git
-        shape: cylinder
-      }
-    }
-    hc.node.kcm.api: kube-apiserver {
-      class: apiserver
-      style: {fill: orange}
-    }
-    hc.node.kcm.kcm: kube-controller-manager {
-      class: kubernetes
-      style: {fill: orange}
-    }
-
-    hc.node.kcm.api -> hc.node.kcm.events etcd
-    hc.node.kcm.api -> hc.node.kcm.gitcd
-    hc.node.kcm.kcm -> hc.node.kcm.api
-  }
-  9: {
-    hc.node.kcm.events etcd.style.fill: transparent
-    hc.node.kcm.gitcd.style.fill: transparent
-    hc.node.kcm.gitcd-pr.style.fill: transparent
-    hc.node.kcm.api.style.fill: transparent
-    hc.node.kcm.kcm.style.fill: transparent
-
-    upstream.kcm: {
-      class: dashed_package
-      style: {fill: orange}
-
-      data: {class: branch}
-      metadata: {class: branch}
-    }
-
-    upstream.main: {
-      class: dashed_package
-      style: {fill: orange}
-
-      data: {class: branch}
-      metadata: {class: branch}
-    }
-
-    hc.node.kcm.gitcd <- upstream.main: fetch {style: {animated: true}}
-    hc.node.kcm.gitcd -> upstream.kcm: push {style: {animated: true}}
-    hc.node.kcm.gitcd-pr <- upstream.kcm: fetch {style: {animated: true}}
-    hc.node.kcm.gitcd-pr -> upstream.main: push {style: {animated: true}}
-  }
-  10: {
-    upstream.kcm.style.fill: transparent
-    upstream.main.style.fill: transparent
-
-    hc.node.tc.scheduler: kube-scheduler {
+    hc.tc.scheduler: kube-scheduler {
       class: crd
       style: {fill: orange}
     }
   }
-  11: {
-    hc.node.tc.scheduler.style.fill: transparent
+  6: {
+    hc.tc.scheduler.style.fill: transparent
+    back.link: 5.svg
+    next.link: 7.svg
 
     hc.dc.scheduler: kube-scheduler {
       class: deploy
       style: {fill: orange}
     }
   }
-  12: {
+  7: {
     hc.dc.scheduler.style.fill: transparent
+    back.link: 6.svg
+    next.link: 8.svg
 
     hc.node.scheduler: kube-scheduler {
       class: pod
       style: {fill: orange}
+
+      scheduler: kube-scheduler {class: scheduler}
+      api: kube-apiserver {class: apiserver}
+      gitcd: {
+        class: etcd
+
+        git: {
+          class: git
+          shape: cylinder
+        }
+      }
     }
+
+    hc.node.scheduler.gitcd <- upstream.mk.main: fetch {style: {animated: true}}
+    hc.node.scheduler.gitcd -> upstream.sk.scheduler: push {style: {animated: true}}
+    hc.node.scheduler.gitcd <- upstream.sk.scheduler: fetch {style: {animated: true}}
+    hc.node.scheduler.gitcd -> upstream.mk.main: push {style: {animated: true}}
+
+    upstream.sk.scheduler.style.fill: orange
+    upstream.mk.main.style.fill: orange
   }
-  13: {
+  8: {
     hc.node.scheduler.style.fill: transparent
+    upstream.sk.scheduler.style.fill: transparent
+    upstream.mk.main.style.fill: transparent
+    upstream.sk.scheduler.style.fill: transparent
+    back.link: 7.svg
+    next.link: 9.svg
 
-    hc.node.scheduler.events etcd: {
-      class: etcd
-      style: {fill: orange}
-    }
-    hc.node.scheduler.gitcd: {
-      class: etcd
-      style: {fill: orange}
+    headless: Headless Cluster {
+      node: Virtual Machine {
+        style: {fill: orange}
 
-      git: {
-        class: git
-        shape: cylinder
+        kubelet: kubelet {
+          class: kubelet
+          style: {
+            fill: orange
+            opacity: 0.0
+          }
+        }
+        api: kube-apiserver {
+          class: apiserver
+          style: {
+            fill: orange
+            opacity: 0.0
+          }
+        }
+        gitcd: {
+          class: etcd
+          style: {
+            fill: orange
+            opacity: 0.0
+          }
+
+          git: {
+            class: git
+            shape: cylinder
+            style: {opacity: 0.0}
+          }
+        }
       }
     }
-    hc.node.scheduler.gitcd-pr: {
-      class: git
-      style: {fill: orange}
 
-      git: {
-        class: git
-        shape: cylinder
+    headless.node.gitcd <- upstream.mk.main: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
       }
     }
-    hc.node.scheduler.api: kube-apiserver {
-      class: apiserver
-      style: {fill: orange}
-    }
-    hc.node.scheduler.scheduler: kube-scheduler {
-      class: kubernetes
-      style: {fill: orange}
-    }
-
-    hc.node.scheduler.api -> hc.node.scheduler.events etcd
-    hc.node.scheduler.api -> hc.node.scheduler.gitcd
-    hc.node.scheduler.scheduler -> hc.node.scheduler.api
-  }
-  14: {
-    hc.node.scheduler.events etcd.style.fill: transparent
-    hc.node.scheduler.gitcd.style.fill: transparent
-    hc.node.scheduler.gitcd-pr.style.fill: transparent
-    hc.node.scheduler.api.style.fill: transparent
-    hc.node.scheduler.scheduler.style.fill: transparent
-
-    upstream.scheduler: {
-      class: dashed_package
-      style: {fill: orange}
-
-      data: {class: branch}
-      metadata: {class: branch}
-    }
-
-    hc.node.scheduler.gitcd <- upstream.main: fetch {style: {animated: true}}
-    hc.node.scheduler.gitcd -> upstream.scheduler: push
-    hc.node.scheduler.gitcd-pr <- upstream.scheduler: fetch {style: {animated: true}}
-    hc.node.scheduler.gitcd-pr -> upstream.main: push
-  }
-  15: {
-    upstream.scheduler.style.fill: transparent
-
-    node: VM {
-      style: {fill: orange}
-    }
-  }
-  16: {
-    node.style.fill: transparent
-
-    node.events etcd: {
-      class: etcd
-      style: {fill: orange}
-    }
-    node.gitcd: {
-      class: etcd
-      style: {fill: orange}
-
-      git: {
-        class: git
-        shape: cylinder
+    headless.node.gitcd -> upstream.sk.kubelet: push {
+      style: {
+        animated: true
+        opacity: 0.0
       }
     }
-    node.gitcd-pr: {
-      class: git
-      style: {fill: orange}
-
-      git: {
-        class: git
-        shape: cylinder
+    headless.node.gitcd <- upstream.sk.kubelet: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
       }
     }
-    node.api: kube-apiserver {
-      class: apiserver
-      style: {fill: orange}
+    headless.node.gitcd -> upstream.mk.main: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
     }
-    node.kubelet: kube-scheduler {
-      class: kubelet
-      style: {fill: orange}
-    }
-
-    node.api -> node.events etcd
-    node.api -> node.gitcd
-    node.kubelet -> node.api
   }
-  17: {
-    node.events etcd.style.fill: transparent
-    node.gitcd.style.fill: transparent
-    node.gitcd-pr.style.fill: transparent
-    node.api.style.fill: transparent
-    node.kubelet.style.fill: transparent
+  9: {
+    headless.node.style.fill: transparent
+    back.link: 8.svg
+    next.link: 10.svg
 
-    upstream.kubelet: {
-      class: dashed_package
-      style: {fill: orange}
-
-      data: {class: branch}
-      metadata: {class: branch}
-    }
-
-    node.gitcd <- upstream.main: fetch {style: {animated: true}}
-    node.gitcd -> upstream.kubelet: push {style: {animated: true}}
-    node.gitcd-pr <- upstream.kubelet: fetch {style: {animated: true}}
-    node.gitcd-pr -> upstream.main: push {style: {animated: true}}
+    headless.node.kubelet.style.opacity: 1.0
+    headless.node.api.style.opacity: 1.0
+    headless.node.gitcd.style.opacity: 1.0
+    headless.node.gitcd.git.style.opacity: 1.0
+    (headless.node.gitcd <- upstream.mk.main)[0].style.opacity: 1.0
+    (headless.node.gitcd -> upstream.sk.kubelet)[0].style.opacity: 1.0
+    (headless.node.gitcd -> upstream.mk.main)[0].style.opacity: 1.0
+    (headless.node.gitcd <- upstream.sk.kubelet)[0].style.opacity: 1.0
+    upstream.sk.kubelet.style.fill: orange
+    upstream.mk.main.style.fill: orange
   }
-  18: {
-    upstream.kubelet.style.fill: transparent
+  10: {
+    headless.node.gitcd.style.fill: transparent
+    headless.node.api.style.fill: transparent
+    headless.node.kubelet.style.fill: transparent
+    upstream.sk.kubelet.style.fill: transparent
+    upstream.mk.main.style.fill: transparent
+    back.link: 9.svg
+    next.link: 11.svg
 
-    node.label: Headless Node
-    node.class: node
-    node.style.fill: orange
+    headless.class: kubernetes
+    headless.node.label: Headless Node
+    headless.node.class: node
+    headless.node.style.fill: orange
   }
-  19: {
-    node.style.fill: transparent
+  11: {
+    back.link: 10.svg
+    next.link: 1.svg
 
-    node.style.fill: lightgreen
-    node.kubelet.style.fill: lightgreen
-    hc.node.kcm.kcm.style.fill: lightgreen
-    hc.node.scheduler.scheduler.style.fill: lightgreen
-    upstream.style.fill: lightgreen
+    headless.style.fill: "#D8FBD8"
+    headless.node.style.fill: lightgreen
+    headless.node.kubelet.style.fill: darkseagreen
+    headless.node.api.style.fill: honeydew
+    headless.node.gitcd.style.fill: honeydew
+    hc.node.kcm.kcm.style.fill: darkseagreen
+    hc.node.kcm.api.style.fill: honeydew
+    hc.node.kcm.gitcd.style.fill: honeydew
+    hc.node.scheduler.scheduler.style.fill: darkseagreen
+    hc.node.scheduler.api.style.fill: honeydew
+    hc.node.scheduler.gitcd.style.fill: honeydew
+    upstream.mk.main.style.fill: darkseagreen
+    upstream.mk.kcm.style.fill: darkseagreen
+    upstream.sk.scheduler.style.fill: darkseagreen
+    upstream.sk.kubelet.style.fill: darkseagreen
   }
 }
