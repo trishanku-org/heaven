@@ -1,4 +1,4 @@
-# ! d2 --sketch --animate-interval=3000 headless-kubernetes.d2 ../svg/headless-kubernetes.svg
+# ! d2 --sketch --animate-interval=3000 headless-kubernetes.d2 ../gif/headless-kubernetes.gif
 # ! d2 --sketch headless-kubernetes.d2 ../pptx/headless-kubernetes.pptx
 direction: down
 
@@ -43,7 +43,6 @@ classes: {
   }
   git: {
     icon: https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png
-    style: {fill: transparent}
   }
   invisible: {
     style: {
@@ -51,6 +50,7 @@ classes: {
     }
   }
   package: {
+    shape: package
     style: {fill: transparent}
   }
   branch: {
@@ -180,7 +180,10 @@ steps: {
         git: {
           class: git
           shape: cylinder
-          style: {opacity: 0.0}
+          style: {
+            opacity: 0.0
+            fill: transparent
+          }
         }
       }
     }
@@ -248,7 +251,10 @@ steps: {
         git: {
           class: git
           shape: cylinder
-          style: {opacity: 0.0}
+          style: {
+            opacity: 0.0
+            fill: transparent
+          }
         }
       }
     }
@@ -311,7 +317,10 @@ steps: {
           git: {
             class: git
             shape: cylinder
-            style: {opacity: 0.0}
+            style: {
+              opacity: 0.0
+              fill: transparent
+            }
           }
         }
       }

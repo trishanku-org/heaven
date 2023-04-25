@@ -202,8 +202,27 @@ This approach for coordinating Kuberenetes controllers without the need for a ce
 while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges when without a central control-plane.
 Perhaps such a fully decentralised Kubernetes cluster could be called a *headless* Kubernetes cluster.
 
-![Headless Kubernetes Cluster ](docs/images/svg/headless-kubernetes.svg)
+![Headless Kubernetes Cluster ](docs/images/gif/headless-kubernetes.gif)
 
 The click-through slideshow of setting up such a headless cluster step by step can be seen [here](docs/images/pptx/headless-kubernetes.pptx).
+
+##### Note
+
+The above setup assumes the network connectivity between the headless control-plane and the headless worker nodes if it is required.
+Ideally, each the headless component (control-plane and worker nodes) needs network access only to the upstream Git repository
+apart from what it needs to perform its duties normally.
+
+#### Two Headless Clusters
+
+```text
+Two headless clusters. Two headless clusters.
+See how they run. See how they run.
+```
+
+The above example used a host Kubernetes cluster to host the headless control-plane for the headless cluster.
+Alternatively, two headless clusters could be configured to host the
+headless control-planes of each other.
+
+![Two Headless Clusters](docs/images/svg/two-headless-clusters/1.svg)
 
 YET TO BE COMPLETED
