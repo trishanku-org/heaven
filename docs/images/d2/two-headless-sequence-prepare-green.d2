@@ -1,0 +1,56 @@
+#! d2 --sketch two-headless-sequence-prepare-green.d2 ../png/two-headless-sequence-prepare-green.png
+
+shape: sequence_diagram
+
+setup: Setup {
+    shape: person
+    style: {fill: lightgray}
+}
+
+host: Green Cluster {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    style: {fill: palegreen}
+}
+
+setup.prepare -> host.prepare: Apply GitHubRepository Controller
+
+ghc: Green GitHubRespository Controller {
+    icon: ../png/github-mark.png
+    style: {fill: palegreen}
+}
+
+host.prepare -> ghc: Reconcile
+
+setup.prepare -> host.prepare: Apply TrishankuHeaven Controller
+
+tc: Green TrishankuHeaven Controller {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    style: {fill: palegreen}
+}
+
+host.prepare -> tc: Reconcile
+
+bootstrap: Bootstrap Cluster {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    style: {fill: lightgoldenrodyellow}
+}
+
+bootstrap_ghc: Bootstrap GitHubRespository Controller {
+    icon: ../png/github-mark.png
+    style: {fill: lightgoldenrodyellow}
+}
+
+setup.c1 -> bootstrap.c1: Release Upstream GitHubRepository
+
+bootstrap_ghc.c1 -> bootstrap.c1: Reconcile
+bootstrap_ghc.c1 -> upstream.gh: Reconcile
+
+setup.gh -> host.gh: Apply Upstream GitHubRepository
+
+upstream: Green Upstream GitHubRepository {
+    icon: ../png/github-mark.png
+    style: {fill: aqua}
+}
+
+ghc.gh -> host.gh: Reconcile
+ghc.gh -> upstream.gh: Reconcile

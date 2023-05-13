@@ -1,0 +1,116 @@
+#! d2 --sketch headless-sequence.d2 ../png/headless-sequence.png
+
+shape: sequence_diagram
+
+setup: Setup {
+    shape: person
+    style: {fill: lightgray}
+}
+
+host: Host Cluster {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+}
+
+setup.prepare -> host.prepare: Apply GitHubRepository Controller
+
+ghc: GitHubRespository Controller {
+   icon: ../png/github-mark.png
+}
+
+host.prepare -> ghc: Reconcile
+
+setup.prepare -> host.prepare: Apply TrishankuHeaven Controller
+
+tc: TrishankuHeaven Controller {
+   icon: ../svg/Kubernetes_logo_without_workmark.svg
+}
+
+host.prepare -> tc: Reconcile
+
+setup.gh -> host.gh: Apply Upstream GitHubRepository
+
+upstream: Upstream GitHubRepository {
+    icon: ../png/github-mark.png
+    style: {fill: lightgreen}
+}
+
+ghc.gh -> upstream.gh: Reconcile
+
+setup.c1 -> host.c1: Apply kube-controller-manager TrishankuHeaven
+
+tc.c1 -> host.c1: Reconcile kube-controller-manager secrets, configmaps and Deployment
+
+kcm: kube-controller-manager {
+    icon: ../png/c-m-128.png
+    style: {fill: lightgreen}
+}
+
+host.c1 -> kcm.c1: Reconcile
+
+upstream.gh.c1 -> kcm.c1.c1: Pull main branch {
+    style: {animated: true}
+}
+
+kcm.c1.c1 -> upstream.gh.c1: Merge and push kcm branch {
+    style: {animated: true}
+}
+
+upstream.gh.c2 -> kcm.c1.c2: Pull kcm branch {
+    style: {animated: true}
+}
+
+kcm.c1.c2 -> upstream.gh.c2: Merge and push main branch {
+    style: {animated: true}
+}
+
+setup.c2 -> host.c2: Apply kube-scheduler TrishankuHeaven
+
+tc.c2 -> host.c2: Reconcile kube-scheduler secrets, configmaps and Deployment
+
+scheduler: kube-scheduler {
+    icon: ../png/sched-128.png
+    style: {fill: lightgreen}
+}
+
+host.c2 -> scheduler.c2: Reconcile
+
+upstream.gh.c3 -> scheduler.c2.c1: Pull main branch {
+    style: {animated: true}
+}
+
+scheduler.c2.c1 -> upstream.gh.c3: Merge and push scheduler branch {
+    style: {animated: true}
+}
+
+upstream.gh.c4 -> scheduler.c2.c2: Pull scheduler branch {
+    style: {animated: true}
+}
+
+scheduler.c2.c2 -> upstream.gh.c4: Merge and push main branch {
+    style: {animated: true}
+}
+
+setup -> setup:  Provision a Virtual Machine
+
+node: Virtual Machine / Headless Node {
+    icon: ../png/node-128.png
+    style: {fill: lightgreen}
+}
+
+setup -> node: Deploy kubelet in a trishanku heaven pointing to the Upstream Git Repository
+
+upstream.gh.c5 -> node.kubelet.c1: Pull main branch {
+    style: {animated: true}
+}
+
+node.kubelet.c1 -> upstream.gh.c5: Merge and push scheduler branch {
+    style: {animated: true}
+}
+
+upstream.gh.c6 -> node.kubelet.c2: Pull scheduler branch {
+    style: {animated: true}
+}
+
+node.kubelet.c2 -> upstream.gh.c6: Merge and push main branch {
+    style: {animated: true}
+}

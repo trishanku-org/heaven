@@ -1,0 +1,31 @@
+#! d2 --sketch two-headless-sequence-release-bootstrap.d2 ../png/two-headless-sequence-release-bootstrap.png
+
+shape: sequence_diagram
+
+setup: Setup {
+    shape: person
+    style: {fill: lightgray}
+}
+
+host: Bootstrap Cluster {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    style: {fill: lightgoldenrodyellow}
+}
+
+setup.prepare -> host.prepare: Delete GitHubRepository Controller
+
+ghc: Bootstrap GitHubRespository Controller {
+    icon: ../png/github-mark.png
+    style: {fill: lightgoldenrodyellow}
+}
+
+host.prepare -> ghc: Reconcile
+
+setup.prepare -> host.prepare: Delete TrishankuHeaven Controller
+
+tc: Bootstrap TrishankuHeaven Controller {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    style: {fill: lightgoldenrodyellow}
+}
+
+host.prepare -> tc: Reconcile

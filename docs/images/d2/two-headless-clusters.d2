@@ -1,0 +1,959 @@
+# ! d2 --sketch two-headless-clusters.d2 ../svg/two-headless-clusters.svg
+direction: down
+
+classes: {
+  kubernetes: {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+  }
+  apiserver: {
+    style: {fill: transparent}
+    icon: ../svg//api.svg
+  }
+  deploy: {
+    style: {fill: transparent}
+    icon: ../png/deploy-128.png
+  }
+  node: {
+    icon: ../png/node-128.png
+  }
+  kubelet: {
+    icon: ../png/kubelet-128.png
+    style: {fill: transparent}
+  }
+  pod: {
+    icon: ../png/pod-128.png
+    style: {fill: transparent}
+  }
+  crd: {
+    icon: ../png/crd-128.png
+    style: {fill: transparent}
+  }
+  kcm: {
+    icon: ../png/c-m-128.png
+    style: {fill: transparent}
+  }
+  scheduler: {
+    icon: ../png/sched-128.png
+    style: {fill: transparent}
+  }
+  etcd: {
+    icon: ../png/etcd-glyph-color.png
+    style: {fill: transparent}
+  }
+  git: {
+    icon: ../pngGit-Icon-1788C.png
+  }
+  github: {
+    icon: ../png/github-mark.png
+    style: {fill: transparent}
+  }
+  invisible: {
+    style: {
+      opacity: 0.0
+    }
+  }
+  package: {
+    shape: package
+    style: {fill: transparent}
+  }
+  branch: {
+    shape: stored_data
+    icon: ../png/9026745_git_branch_thin_icon.png
+    style: {fill: transparent}
+  }
+}
+
+steps: {
+  1: {
+    boot: Bootstrap Cluster {
+      class: kubernetes
+      style: {fill: lightgoldenrodyellow}
+
+      api: kube-apiserver {
+        class: apiserver
+        style: {fill: palegoldenrod}
+      }
+      dc: Deployment Controller {
+        class: deploy
+        style: {fill: palegoldenrod}
+
+        ghc: GitHubRepository Controller {
+          class: deploy
+          style: {
+            fill: lightgoldenrodyellow
+            opacity: 0.0
+          }
+        }
+
+        tc: TrishankuHeaven Controller {
+          class: deploy
+          style: {
+            fill: lightgoldenrodyellow
+            opacity: 0.0
+          }
+        }
+
+        kcm: kube-controller-manager {
+          class: deploy
+          style: {
+            fill: lightblue
+            opacity: 0.0
+          }
+        }
+
+        scheduler: kube-scheduler {
+          class: deploy
+          style: {
+            fill: lightblue
+            opacity: 0.0
+          }
+        }
+      }
+      dc -> api
+
+      node: Node {
+        class: node
+        style: {fill: palegoldenrod}
+
+        kubelet: {
+          class: kubelet
+          style: {fill: lightgoldenrodyellow}
+        }
+        kubelet -> _.api
+
+        ghc: GitHubRepository Controller {
+          class: pod
+          style: {
+            fill: lightgoldenrodyellow
+            opacity: 0.0
+          }
+
+          upstream: Upstream Blue {
+            class: github
+            style: {
+              fill: lightskyblue
+              opacity: 0.0
+            }
+          }
+        }
+
+        tc: TrishankuHeaven Controller {
+          class: pod
+          style: {
+            fill: lightgoldenrodyellow
+            opacity: 0.0
+          }
+
+          kcm: kube-controller-manager {
+            class: crd
+            style: {
+              fill: lightskyblue
+              opacity: 0.0
+            }
+          }
+
+          scheduler: kube-scheduler {
+            class: crd
+            style: {
+              fill: lightskyblue
+              opacity: 0.0
+            }
+          }
+        }
+
+        i: {
+          class: invisible
+          kcm: kube-controller-manager {
+            class: pod
+            style: {
+              fill: aqua
+              opacity: 0.0
+            }
+
+            ghc: GitHubRepository Controller {
+              class: deploy
+              style: {
+                opacity: 0.0
+                fill: lightskyblue
+              }
+            }
+
+            tc: TrishankuHeaven Controller {
+              class: deploy
+              style: {
+                opacity: 0.0
+                fill: lightskyblue
+              }
+            }
+
+            kcm: kube-controller-manager {
+              class: deploy
+              style: {
+                fill: springgreen
+                opacity: 0.0
+              }
+            }
+
+            scheduler: kube-scheduler {
+              class: deploy
+              style: {
+                fill: springgreen
+                opacity: 0.0
+              }
+            }
+          }
+
+          scheduler: kube-scheduler {
+            class: pod
+            style: {
+              fill: aqua
+              opacity: 0.0
+            }
+          }
+        }
+      }
+
+      node.ghc -> api: {style: {opacity: 0.0}}
+      node.tc -> api: {style: {opacity: 0.0}}
+    }
+
+    boot.node.ghc -> blue.upstream: {style: {opacity: 0.0}}
+    boot.node.i.kcm <- blue.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    boot.node.i.kcm -> blue.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    boot.node.i.scheduler <- blue.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    boot.node.i.scheduler -> blue.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    blue: Headless Cluster Blue {
+      style: {
+        fill: aqua
+        opacity: 0.0
+      }
+
+      upstream: Upstream Blue {
+        shape: cylinder
+        class: github
+        style: {
+          fill: lightskyblue
+          opacity: 0.0
+        }
+
+        mk: {
+          class: invisible
+
+          main: {
+            class: package
+            style: {
+              fill: aqua
+              opacity: 0.0
+            }
+          }
+          kcm: {
+            class: package
+            style: {
+              fill: aqua
+              opacity: 0.0
+            }
+          }
+        }
+
+        sk: {
+          class: invisible
+
+          scheduler: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: aqua
+            }
+          }
+          kubelet: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: aqua
+            }
+          }
+        }
+
+        gh: {
+          class: invisible
+
+          github: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: aqua
+            }
+          }
+          heaven: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: aqua
+            }
+          }
+        }
+      }
+
+      node: Virtual Machine {
+        style: {
+          fill: lightskyblue
+          opacity: 0.0
+        }
+
+        kubelet: kubelet {
+          class: kubelet
+          style: {
+            fill: aqua
+            opacity: 0.0
+          }
+        }
+
+        ghc: GitHubRepository Controller {
+          class: pod
+          style: {
+            fill: aqua
+            opacity: 0.0
+          }
+
+          upstream: Upstream Green {
+            class: github
+            style: {
+              fill: springgreen
+              opacity: 0.0
+            }
+          }
+        }
+
+        tc: TrishankuHeaven Controller {
+          class: pod
+          style: {
+            fill: aqua
+            opacity: 0.0
+          }
+
+          kcm: kube-controller-manager {
+            class: crd
+            style: {
+              fill: springgreen
+              opacity: 0.0
+            }
+          }
+
+          scheduler: kube-scheduler {
+            class: crd
+            style: {
+              fill: springgreen
+              opacity: 0.0
+            }
+          }
+        }
+
+        i: {
+          class: invisible
+          kcm: kube-controller-manager {
+            class: pod
+            style: {
+              fill: palegreen
+              opacity: 0.0
+            }
+
+            ghc: GitHubRepository Controller {
+              class: deploy
+              style: {
+                opacity: 0.0
+                fill: springgreen
+              }
+            }
+
+            tc: TrishankuHeaven Controller {
+              class: deploy
+              style: {
+                opacity: 0.0
+                fill: springgreen
+              }
+            }
+
+            kcm: kube-controller-manager {
+              class: deploy
+              style: {
+                fill: lightskyblue
+                opacity: 0.0
+              }
+            }
+
+            scheduler: kube-scheduler {
+              class: deploy
+              style: {
+                fill: lightskyblue
+                opacity: 0.0
+              }
+            }
+          }
+
+          scheduler: kube-scheduler {
+            class: pod
+            style: {
+              fill: palegreen
+              opacity: 0.0
+            }
+          }
+        }
+      }
+    }
+
+    blue.node.ghc -> green.upstream: {style: {opacity: 0.0}}
+    blue.node.kubelet <- blue.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    blue.node.kubelet -> blue.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    blue.node.ghc <- blue.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    blue.node.ghc -> blue.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    blue.node.tc <- blue.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    blue.node.tc -> blue.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    blue.node.i.kcm <- green.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    blue.node.i.kcm -> green.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    blue.node.i.scheduler <- green.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    blue.node.i.scheduler -> green.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    green: Headless Cluster Green {
+      style: {
+        fill: palegreen
+        opacity: 0.0
+      }
+
+      upstream: Upstream {
+        shape: cylinder
+        class: github
+        style: {
+          opacity: 0.0
+          fill: springgreen
+        }
+
+        mk: {
+          class: invisible
+
+          main: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: palegreen
+            }
+          }
+          kcm: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: palegreen
+            }
+          }
+        }
+
+        sk: {
+          class: invisible
+
+          scheduler: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: palegreen
+            }
+          }
+          kubelet: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: palegreen
+            }
+          }
+        }
+
+        gh: {
+          class: invisible
+
+          github: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: palegreen
+            }
+          }
+          heaven: {
+            class: package
+            style: {
+              opacity: 0.0
+              fill: palegreen
+            }
+          }
+        }
+      }
+
+      node: Virtual Machine {
+        style: {
+          fill: springgreen
+          opacity: 0.0
+        }
+
+        kubelet: kubelet {
+          class: kubelet
+          style: {
+            fill: palegreen
+            opacity: 0.0
+          }
+        }
+
+        ghc: GitHubRepository Controller {
+          class: pod
+          style: {
+            fill: palegreen
+            opacity: 0.0
+          }
+
+          upstream: Upstream Green {
+            class: github
+            style: {
+              fill: lightskyblue
+              opacity: 0.0
+            }
+          }
+        }
+
+        tc: TrishankuHeaven Controller {
+          class: pod
+          style: {
+            fill: palegreen
+            opacity: 0.0
+          }
+
+          kcm: kube-controller-manager {
+            class: crd
+            style: {
+              fill: lightskyblue
+              opacity: 0.0
+            }
+          }
+
+          scheduler: kube-scheduler {
+            class: crd
+            style: {
+              fill: lightskyblue
+              opacity: 0.0
+            }
+          }
+        }
+
+        i: {
+          class: invisible
+          kcm: kube-controller-manager {
+            class: pod
+            style: {
+              fill: aqua
+              opacity: 0.0
+            }
+
+            ghc: GitHubRepository Controller {
+              class: deploy
+              style: {
+                opacity: 0.0
+                fill: lightskyblue
+              }
+            }
+
+            tc: TrishankuHeaven Controller {
+              class: deploy
+              style: {
+                opacity: 0.0
+                fill: lightskyblue
+              }
+            }
+
+            kcm: kube-controller-manager {
+              class: deploy
+              style: {
+                fill: springgreen
+                opacity: 0.0
+              }
+            }
+
+            scheduler: kube-scheduler {
+              class: deploy
+              style: {
+                fill: springgreen
+                opacity: 0.0
+              }
+            }
+          }
+
+          scheduler: kube-scheduler {
+            class: pod
+            style: {
+              fill: aqua
+              opacity: 0.0
+            }
+          }
+        }
+      }
+    }
+
+    green.node.ghc -> blue.upstream: {style: {opacity: 0.0}}
+    green.node.kubelet <- green.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    green.node.kubelet -> green.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    green.node.ghc <- green.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    green.node.ghc -> green.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    green.node.tc <- green.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    green.node.tc -> green.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    green.node.i.kcm <- blue.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    green.node.i.kcm -> blue.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+
+    green.node.i.scheduler <- blue.upstream: fetch {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+    green.node.i.scheduler -> blue.upstream: push {
+      style: {
+        animated: true
+        opacity: 0.0
+      }
+    }
+  }
+  2: {
+    boot.dc.ghc.style.opacity: 1.0
+    boot.dc.tc.style.opacity: 1.0
+    boot.dc.ghc.style.fill: lightgoldenrodyellow
+    boot.dc.tc.style.fill: lightgoldenrodyellow
+
+    boot.node.ghc.style.opacity: 1.0
+    boot.node.tc.style.opacity: 1.0
+    boot.node.ghc.style.fill: lightgoldenrodyellow
+    boot.node.tc.style.fill: lightgoldenrodyellow
+    (boot.node.ghc -> boot.api)[0].style.opacity: 1.0
+    (boot.node.tc -> boot.api)[0].style.opacity: 1.0
+
+    boot.node.ghc.upstream.style.opacity: 1.0
+    boot.node.ghc.upstream.style.fill: lightskyblue
+
+    blue.style.opacity: 1.0
+    blue.upstream.style.opacity: 1.0
+    blue.upstream.style.fill: lightskyblue
+
+    (boot.node.ghc -> blue.upstream)[0].style.opacity: 1.0
+
+    boot.node.tc.kcm.style.opacity: 1.0
+    boot.node.tc.scheduler.style.opacity: 1.0
+    boot.node.tc.kcm.style.fill: lightskyblue
+    boot.node.tc.scheduler.style.fill: lightskyblue
+
+    boot.dc.kcm.style.opacity: 1.0
+    boot.dc.scheduler.style.opacity: 1.0
+    boot.dc.kcm.style.fill: aqua
+    boot.dc.scheduler.style.fill: aqua
+
+    boot.node.i.kcm.style.opacity: 1.0
+    boot.node.i.scheduler.style.opacity: 1.0
+    boot.node.i.kcm.style.fill: aqua
+    boot.node.i.scheduler.style.fill: aqua
+
+    blue.upstream.mk.main.style.opacity: 1.0
+    blue.upstream.mk.kcm.style.opacity: 1.0
+    blue.upstream.sk.scheduler.style.opacity: 1.0
+    blue.upstream.mk.main.style.fill: aqua
+    blue.upstream.mk.kcm.style.fill: aqua
+    blue.upstream.sk.scheduler.style.fill: aqua
+
+    (boot.node.i.kcm <- blue.upstream)[0].style.opacity: 1.0
+    (boot.node.i.kcm -> blue.upstream)[0].style.opacity: 1.0
+    (boot.node.i.scheduler <- blue.upstream)[0].style.opacity: 1.0
+    (boot.node.i.scheduler -> blue.upstream)[0].style.opacity: 1.0
+
+    blue.node.style.opacity: 1.0
+    blue.node.style.fill: lightskyblue
+
+    blue.node.kubelet.style.opacity: 1.0
+    blue.upstream.sk.kubelet.style.opacity: 1.0
+    blue.node.kubelet.style.fill: aqua
+    blue.upstream.sk.kubelet.style.fill: aqua
+
+    (blue.node.kubelet <- blue.upstream)[0].style.opacity: 1.0
+    (blue.node.kubelet -> blue.upstream)[0].style.opacity: 1.0
+
+    blue.class: kubernetes
+    blue.node.class: node
+    blue.node.label: Node
+  }
+  3: {
+    boot.node.i.kcm.ghc.style.opacity: 1.0
+    boot.node.i.kcm.tc.style.opacity: 1.0
+    boot.node.i.kcm.ghc.style.fill: lightskyblue
+    boot.node.i.kcm.tc.style.fill: lightskyblue
+
+    blue.node.ghc.style.opacity: 1.0
+    blue.node.tc.style.opacity: 1.0
+    blue.upstream.gh.github.style.opacity: 1.0
+    blue.upstream.gh.heaven.style.opacity: 1.0
+    blue.node.ghc.style.fill: aqua
+    blue.node.tc.style.fill: aqua
+    blue.upstream.gh.github.style.fill: aqua
+    blue.upstream.gh.heaven.style.fill: aqua
+
+    (blue.node.ghc <- blue.upstream)[0].style.opacity: 1.0
+    (blue.node.ghc -> blue.upstream)[0].style.opacity: 1.0
+    (blue.node.tc -> blue.upstream)[0].style.opacity: 1.0
+    (blue.node.tc <- blue.upstream)[0].style.opacity: 1.0
+
+    blue.node.ghc.upstream.style.opacity: 1.0
+    blue.node.ghc.upstream.style.fill: springgreen
+
+    green.style.opacity: 1.0
+    green.upstream.style.opacity: 1.0
+    green.upstream.style.fill: springgreen
+
+    (blue.node.ghc -> green.upstream)[0].style.opacity: 1.0
+
+    blue.node.tc.kcm.style.opacity: 1.0
+    blue.node.tc.scheduler.style.opacity: 1.0
+    blue.node.tc.kcm.style.fill: springgreen
+    blue.node.tc.scheduler.style.fill: springgreen
+
+    boot.node.i.kcm.kcm.style.opacity: 1.0
+    boot.node.i.kcm.scheduler.style.opacity: 1.0
+    boot.node.i.kcm.kcm.style.fill: springgreen
+    boot.node.i.kcm.scheduler.style.fill: springgreen
+
+    blue.node.i.kcm.style.opacity: 1.0
+    blue.node.i.scheduler.style.opacity: 1.0
+    green.upstream.mk.main.style.opacity: 1.0
+    green.upstream.mk.kcm.style.opacity: 1.0
+    green.upstream.sk.scheduler.style.opacity: 1.0
+    blue.node.i.kcm.style.fill: palegreen
+    blue.node.i.scheduler.style.fill: palegreen
+    green.upstream.mk.main.style.fill: palegreen
+    green.upstream.mk.kcm.style.fill: palegreen
+    green.upstream.sk.scheduler.style.fill: palegreen
+
+    (blue.node.i.kcm <- green.upstream)[0].style.opacity: 1.0
+    (blue.node.i.kcm <- green.upstream)[0].style.opacity: 1.0
+    (blue.node.i.scheduler <- green.upstream)[0].style.opacity: 1.0
+    (blue.node.i.scheduler -> green.upstream)[0].style.opacity: 1.0
+
+    green.node.style.opacity: 1.0
+    green.node.style.fill: springgreen
+
+    green.node.kubelet.style.opacity: 1.0
+    green.upstream.kubelet.style.opacity: 1.0
+    green.node.kubelet.style.fill: palegreen
+    green.upstream.kubelet.style.fill: palegreen
+
+    (green.node.kubelet <- green.upstream)[0].style.opacity: 1.0
+    (green.node.kubelet -> green.upstream)[0].style.opacity: 1.0
+
+    green.class: kubernetes
+    green.node.class: node
+    green.node.label: Node
+  }
+  4: {
+    blue.node.i.kcm.ghc.style.opacity: 1.0
+    blue.node.i.kcm.tc.style.opacity: 1.0
+    blue.node.i.kcm.ghc.style.fill: springgreen
+    blue.node.i.kcm.tc.style.fill: springgreen
+
+    green.node.ghc.style.opacity: 1.0
+    green.node.tc.style.opacity: 1.0
+    green.upstream.gh.github.style.opacity: 1.0
+    green.upstream.gh.heaven.style.opacity: 1.0
+    green.node.ghc.style.fill: palegreen
+    green.node.tc.style.fill: palegreen
+    green.upstream.gh.github.style.fill: palegreen
+    green.upstream.gh.heaven.style.fill: palegreen
+
+    (green.node.ghc <- green.upstream)[0].style.opacity: 1.0
+    (green.node.ghc -> green.upstream)[0].style.opacity: 1.0
+    (green.node.tc -> green.upstream)[0].style.opacity: 1.0
+    (green.node.tc <- green.upstream)[0].style.opacity: 1.0
+
+    boot.node.ghc.upstream.style.opacity: 0.0
+    (boot.node.ghc -> blue.upstream)[0].style.opacity: 0.0
+
+    green.node.ghc.upstream.style.opacity: 1.0
+    green.node.ghc.upstream.style.fill: lightskyblue
+
+    (green.node.ghc -> blue.upstream)[0].style.opacity: 1.0
+  }
+  5: {
+    boot.dc.ghc.style.opacity: 0.0
+    boot.dc.tc.style.opacity: 0.0
+    boot.dc.kcm.style.opacity: 0.0
+    boot.dc.scheduler.style.opacity: 0.0
+    boot.node.ghc.style.opacity: 0.0
+    boot.node.tc.kcm.style.opacity: 0.0
+    boot.node.tc.scheduler.style.opacity: 0.0
+    boot.node.tc.style.opacity: 0.0
+    boot.node.i.kcm.ghc.style.opacity: 0.0
+    boot.node.i.kcm.tc.style.opacity: 0.0
+    boot.node.i.kcm.kcm.style.opacity: 0.0
+    boot.node.i.kcm.scheduler.style.opacity: 0.0
+    boot.node.i.kcm.style.opacity: 0.0
+    boot.node.i.scheduler.style.opacity: 0.0
+
+    (boot.node.ghc -> boot.api)[0].style.opacity: 0.0
+    (boot.node.tc -> boot.api)[0].style.opacity: 0.0
+    (boot.node.i.kcm <- blue.upstream)[0].style.opacity: 0.0
+    (boot.node.i.kcm -> blue.upstream)[0].style.opacity: 0.0
+    (boot.node.i.scheduler <- blue.upstream)[0].style.opacity: 0.0
+    (boot.node.i.scheduler -> blue.upstream)[0].style.opacity: 0.0
+  }
+  6: {
+    green.node.tc.kcm.style.opacity: 1.0
+    green.node.tc.scheduler.style.opacity: 1.0
+    green.node.tc.kcm.style.fill: lightskyblue
+    green.node.tc.scheduler.style.fill: lightskyblue
+
+    blue.node.i.kcm.kcm.style.opacity: 1.0
+    blue.node.i.kcm.scheduler.style.opacity: 1.0
+    blue.node.i.kcm.kcm.style.fill: lightskyblue
+    blue.node.i.kcm.scheduler.style.fill: lightskyblue
+
+    green.node.ghc.style.opacity: 1.0
+    green.node.tc.kcm.style.opacity: 1.0
+    green.node.tc.scheduler.style.opacity: 1.0
+    green.node.tc.style.opacity: 1.0
+    green.node.i.kcm.ghc.style.opacity: 1.0
+    green.node.i.kcm.tc.style.opacity: 1.0
+    green.node.i.kcm.kcm.style.opacity: 1.0
+    green.node.i.kcm.scheduler.style.opacity: 1.0
+    green.node.i.kcm.style.opacity: 1.0
+    green.node.i.scheduler.style.opacity: 1.0
+
+    (green.node.i.kcm <- blue.upstream)[0].style.opacity: 1.0
+    (green.node.i.kcm -> blue.upstream)[0].style.opacity: 1.0
+    (green.node.i.scheduler <- blue.upstream)[0].style.opacity: 1.0
+    (green.node.i.scheduler -> blue.upstream)[0].style.opacity: 1.0
+  }
+  7: {
+    boot.node.kubelet.style.opacity: 0.0
+    boot.node.style.opacity: 0.0
+    boot.dc.style.opacity: 0.0
+    boot.api.style.opacity: 0.0
+    boot.style.opacity: 0.0
+
+    (boot.dc -> boot.api)[0].style.opacity: 0.0
+    (boot.node.kubelet -> boot.api)[0].style.opacity: 0.0
+  }
+}

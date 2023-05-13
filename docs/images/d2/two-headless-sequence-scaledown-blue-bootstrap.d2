@@ -1,0 +1,40 @@
+#! d2 --sketch two-headless-sequence-scaledown-blue-bootstrap.d2 ../png/two-headless-sequence-scaledown-blue-bootstrap.png
+
+shape: sequence_diagram
+
+setup: Setup {
+    shape: person
+    style: {fill: lightgray}
+}
+
+host: Bootstrap Cluster {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    style: {fill: lightgoldenrodyellow}
+}
+
+setup.c2 -> host.c2: Delete kube-scheduler TrishankuHeaven
+
+tc: Bootstrap TrishankuHeaven Controller {
+    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    style: {fill: lightgoldenrodyellow}
+}
+
+tc.c2 -> host.c2: Reconcile
+
+scheduler: Blue kube-scheduler {
+    icon: ../png/sched-128.png
+    style: {fill: aqua}
+}
+
+host.c2 -> scheduler.c2: Reconcile
+
+setup.c1 -> host.c1: Delete kube-controller-manager TrishankuHeaven
+
+tc.c1 -> host.c1: Reconcile
+
+kcm: Blue kube-controller-manager {
+    icon: ../png/c-m-128.png
+    style: {fill: aqua}
+}
+
+host.c1 -> kcm.c1: Reconcile

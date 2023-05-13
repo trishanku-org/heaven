@@ -23,6 +23,11 @@ A set of Kubernetes controllers to configure/provision `trishankuheavens` for Ku
   - [TrishankuHeaven](#trishankuheaven)
     - [Coordination using an upstream Git repository](#coordination-using-an-upstream-git-repository)
     - [Headless Kubernetes Cluster](#headless-kubernetes-cluster)
+      - [Note](#note)
+    - [Two Headless Clusters](#two-headless-clusters)
+      - [Note](#note-1)
+- [Next](#next)
+
 
 ## Why
 
@@ -202,27 +207,69 @@ This approach for coordinating Kuberenetes controllers without the need for a ce
 while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges when without a central control-plane.
 Perhaps such a fully decentralised Kubernetes cluster could be called a *headless* Kubernetes cluster.
 
-![Headless Kubernetes Cluster ](docs/images/gif/headless-kubernetes.gif)
+![Headless Kubernetes Cluster ](docs/images/svg/headless-kubernetes/11.svg)
 
-The click-through slideshow of setting up such a headless cluster step by step can be seen [here](docs/images/pptx/headless-kubernetes.pptx).
+The individual steps of setting up such a headless cluster can be seen [here](docs/images/svg/headless-kubernetes).
+
+A simplified sequence diagram of the same steps can be seen below.
+![Headless Kubernetes Cluster Sequence Diagram](docs/images/png/headless-sequence.png)
 
 ##### Note
 
-The above setup assumes the network connectivity between the headless control-plane and the headless worker nodes if it is required.
+- The above setup assumes the network connectivity between the headless control-plane and the headless worker nodes if it is required.
 Ideally, each the headless component (control-plane and worker nodes) needs network access only to the upstream Git repository
 apart from what it needs to perform its duties normally.
 
-#### Two Headless Clusters
+- The above setup leaves out the details of setting up the headeless virtual machine and making sure that it joins as a node of the headless cluster.
+Ideally, this should also be automated declaratively in a control-loop along the lines of [gardener/machine-controller-manager](https://github.com/gardener/machine-controller-manager),
+which also can be hosted as another headless control-plane controller in the bootstrap cluster.
 
-```text
-Two headless clusters. Two headless clusters.
-See how they run. See how they run.
-```
+#### Two Headless Clusters
 
 The above example used a host Kubernetes cluster to host the headless control-plane for the headless cluster.
 Alternatively, two headless clusters could be configured to host the
 headless control-planes of each other.
+The high level steps for this can be as below.
 
-![Two Headless Clusters](docs/images/svg/two-headless-clusters/1.svg)
+1. Setup a `blue` headless cluster using a `bootstrap` Kubernetes cluster to host its headless control-plane.
+![Blue Headless Cluster Sequence Diagram](docs/images/png/two-headless-sequence-blue.png)
+![Blue Headless Cluster](docs/images/svg/two-headless-clusters/2.svg)
 
-YET TO BE COMPLETED
+1. Setup a `green` headless cluster using the `blue` headless cluster to host its headless control-plane.
+![Green Headless Cluster Sequence Diagram](docs/images/png/two-headless-sequence-green.png)
+![Green Headless Cluster](docs/images/svg/two-headless-clusters/3.svg)
+
+1. Prepare the `green` headless cluster to host a new replica of the `blue` headless control-plane.
+![Green Headless Cluster Prepare Sequence Diagram](docs/images/png/two-headless-sequence-prepare-green.png)
+![Green Headless Cluster Prepare](docs/images/svg/two-headless-clusters/4.svg)
+
+1. Scale down the original `blue` headless control-plane replica in the `bootstrap` cluster to avoid racing with the new replica to be setup next in the `green` headless cluster.
+![Scale Down Blue Headless Control-plane in Bootstrap Cluster Sequence Diagram](docs/images/png/two-headless-sequence-scaledown-blue-bootstrap.png)
+![Scale Down Blue Headless Control-plane in Bootstrap Cluster](docs/images/svg/two-headless-clusters/5.svg)
+
+1. Setup the new replica of the `blue` headless control-plane in the `green` headless cluster by pointing the corresponding `trishankuheavens` to the `blue` upstream Git repository.
+![Blue Headless Control-plane in Green Cluster Sequence Diagram](docs/images/png/two-headless-sequence-scaleup-blue-green.png)
+![Blue Headless Control-plane in Green Cluster](docs/images/svg/two-headless-clusters/6.svg)
+
+1. Release the `bootstrap` cluster.
+![Release Bootstrap Cluster Sequence Diagram](docs/images/png/two-headless-sequence-release-bootstrap.png)
+![Release Bootstrap Cluster](docs/images/svg/two-headless-clusters/7.svg)
+
+##### Note
+
+- In these depictions, the headless controllers are shown simplistically communicating with the upstream Git repositories (instead of a central apiserver) omitting the details of the sidecar containers that make such communication happen.
+- As mentioned [above](#note), this setup leaves out control-loop automation of provisioning headless nodes for either of the headless clusters.
+So, this setup is not self-healing if either of the headless nodes are lost.
+This can be remedied by setting up something like [gardener/machine-controller-manager](https://github.com/gardener/machine-controller-manager)
+as a headless control-plane component to provision and manage the headless nodes.
+- This setup also ignores the complications involved in transitioning the control-plane of the `blue` headless cluster from the `bootstrap` cluster to the `green` headless cluster.
+Such a transition is eased considerably by the fact that merely pointing the `blue` headless cluster's control-plane to the same upstream Git repo solves the data migration problem.
+Leader-election or other such mechanisms would be required to aviod/mitigate two replicas of the `blue` headless cluster (one each in the `bootstrap` and `green` clusters) racing with each other.
+
+## Next
+
+This project is a proof of concept.
+A lot more work is required make it efficient and productive.
+There are different possible applications for such an approach of
+loosely co-ordinating independent controllers.
+Please reach out at [@AmshumanKR](https://twitter.com/AmshumanKR) (Twitter) or here in the GitHub [issues](https://github.com/trishanku-org/heaven/issues) if interested in collaborating.
