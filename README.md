@@ -27,7 +27,7 @@ A set of Kubernetes controllers to configure/provision `trishankuheavens` for Ku
     - [Two Headless Clusters](#two-headless-clusters)
       - [Note](#note-1)
 - [Next](#next)
-
+- [What Else](#what-else)
 
 ## Why
 
@@ -203,7 +203,7 @@ The `gitcd` and `gitcd-pr` controllers use their own clones of the upstream Git 
 
 #### Headless Kubernetes Cluster
 
-This approach for coordinating Kuberenetes controllers without the need for a central control-plane creates the possibility of a full decentralised Kubernetes cluster where each component/controller works independently
+This approach for coordinating Kuberenetes controllers without the need for a central control-plane creates the possibility of a fully decentralised Kubernetes cluster where each component/controller works independently
 while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges when without a central control-plane.
 Perhaps such a fully decentralised Kubernetes cluster could be called a *headless* Kubernetes cluster.
 
@@ -273,3 +273,13 @@ A lot more work is required make it efficient and productive.
 There are different possible applications for such an approach of
 loosely co-ordinating independent controllers.
 Please reach out at [@AmshumanKR](https://twitter.com/AmshumanKR) (Twitter) or here in the GitHub [issues](https://github.com/trishanku-org/heaven/issues) if interested in collaborating.
+
+## What Else
+
+Git was picked for this project because it enables unlimited forking and multi-way merging with unconstrained conflict resolution.
+But the inefficiency of using Git as a database is obvious.
+However, the real inefficiency lies in Gitcd using a file/folder structure as a key-value store
+and not so much in Git being used to version track such a file/folder structure.
+In principle, this can be remedied by using a more conventional database which supports unlimited forks and multi-way merging the way Git does. 
+It might be worth building such a database if it doesn't exist already.
+It is quite possible that it will be of more than academic interest.
