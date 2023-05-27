@@ -278,8 +278,15 @@ Please reach out at [@AmshumanKR](https://twitter.com/AmshumanKR) (Twitter) or h
 
 Git was picked for this project because it enables unlimited forking and multi-way merging with unconstrained conflict resolution.
 But the inefficiency of using Git as a database is obvious.
+Some of it is mitigated by the fact that each fork of the Git repo serves only a single controller and the eventually consistent coordination
+naturally lends itself to subdividing the problem space (and hence, the data space) to any suitable granularity.
 However, the real inefficiency lies in Gitcd using a file/folder structure as a key-value store
 and not so much in Git being used to version track such a file/folder structure.
-In principle, this can be remedied by using a more conventional database which supports unlimited forks and multi-way merging the way Git does. 
-It might be worth building such a database if it doesn't exist already.
-It is quite possible that it will be of more than academic interest.
+In principle, this can be remedied by using a more conventional database which supports eventually consistent coordination
+with unlimited forks and multi-way merging the way Git does.
+Some candidates are as follows.
+
+- [Dolt](https://github.com/dolthub/dolt)
+- [Irmin](https://github.com/mirage/irmin)
+- [TerminusDB](https://github.com/terminusdb/terminusdb)
+
