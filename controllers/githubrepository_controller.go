@@ -159,6 +159,7 @@ func getRepoOwner(repo *v1alpha1.GitHubRepository, authUser string) string {
 // SetupWithManager sets up the controller with the Manager.
 func (r *GitHubRepositoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("githubrepository").
 		For(&v1alpha1.GitHubRepository{}).
 		Complete(r)
 }

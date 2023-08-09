@@ -110,16 +110,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.TrishankuHeavenReconciler{
-		Client:                mgr.GetClient(),
-		Scheme:                mgr.GetScheme(),
-		DefaultEtcdImage:      defaultEtcdImage,
-		DefaultCfsslImage:     defaultCfsslImage,
-		DefaultKubectlImage:   defaultKubectlImage,
-		DefaultGitImage:       defaultGitImage,
-		DefaultGitcdImage:     defaultGitcdImage,
-		DefaultApiserverImage: defaultApiserverImage,
-	}).SetupWithManager(mgr); err != nil {
+	if err = controllers.NewTrishankuHeavenReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		defaultEtcdImage,
+		defaultGitImage,
+		defaultGitcdImage,
+		defaultApiserverImage,
+	).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "TrishankuHeaven")
 		os.Exit(1)
 	}
@@ -128,6 +126,15 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitHubRepository")
+		os.Exit(1)
+	}
+	if err = controllers.NewAutomatedMergeReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		defaultGitImage,
+		defaultGitcdImage,
+	).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AutomatedMerge")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

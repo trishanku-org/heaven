@@ -148,29 +148,44 @@ type GitcdSpec struct {
 	// +optional
 	ImagePullSecretName string `json:"imagePullSecretName"`
 
-	// RemoteRepo specifies the URL or path to the remote repo for the git repo that will back gitcd.
-	// +optional
-	RemoteRepo string `json:"remoteRepo,omitempty"`
-
-	// Branches specifies the local and remote data and metadata branches for gitcd.
-	Branches BranchesSpec `json:"branches"`
+	//Git specifies the configuration for Git repo that will back gitcd.
+	Git GitSpec `json:"git"`
 
 	// Pull specifies the pull configuration for gitcd.
 	Pull PullSpec `json:"pull"`
-
-	// PullRequest specifies the pull request configuration for gitcd.
-	// +optional
-	PullRequest *PullRequestSpec `json:"pullRequest,omitempty"`
 }
 
-// BranchesSpec specifies the local and remote branches for Gitcd
-type BranchesSpec struct {
-	// Local specifies the local data and metadata branches.
-	Local BranchSpec `json:"local"`
+// GitSpec specifies the configuration for Git repo that will back gitcd.
+type GitSpec struct {
+	// Branches specifies the local data and metadata branches.
+	Branches BranchSpec `json:"branches"`
 
-	// Remote specifies the remote data and metadata branches.
+	// Remotes specifies the details about one or more remote repos and data/metadata branches for the git repo that will back gitcd.
+	Remotes []RemoteSpec `json:"remotes"`
+}
+
+// RemoteSpec specifies the details about one or more remote repos and data/metadata branches for the git repo that will back gitcd.
+type RemoteSpec struct {
+	// Name specifies the name of the remote repo. Defaults to origin.
 	// +optional
-	Remote *BranchSpec `json:"remote,omitempty"`
+	Name string `json:"name"`
+
+	// RemoteRepo specifies the URL or path to the remote repo for the git repo that will back gitcd.
+	// +optional
+	Repo string `json:"repo"`
+
+	// Branches specifies the data and metadata branches.
+	// +optional
+	Branches *BranchSpec `json:"branches"`
+
+	// RetentionPolicies specifies the retention policies while merging changes from remote.
+	// +optional
+	RetentionPolicies RetentionPoliciesSpec `json:"retentionPolicies,omitempty"`
+
+	// ConflictResolution specifies the conflict resolution policy while merging changes from remote.
+	// +optional
+	// +default:=1
+	ConflictResolution int8 `json:"conflictResolution,omitempty"`
 }
 
 // BranchSpec specifies the data and metadata branches for Gitcd
@@ -188,15 +203,6 @@ type BranchSpec struct {
 
 // PullSpec specifies the pull configuration for Gitcd.
 type PullSpec struct {
-	// RetentionPolicies specifies the retention policies while merging changes from remote.
-	// +optional
-	RetentionPolicies RetentionPoliciesSpec `json:"retentionPolicies,omitempty"`
-
-	// ConflictResolutions specifies the conflict resolution policy while merging changes from remote.
-	// +optional
-	// +default:=default=1
-	ConflictResolutions string `json:"conflictResolutions,omitempty"`
-
 	// PushAfterMerge specifies if the local branch must be pushed to remote after merging from remote.
 	// +optional
 	// +default=true
@@ -210,33 +216,13 @@ type PullSpec struct {
 type RetentionPoliciesSpec struct {
 	// Include specifies the include retention policies.
 	// +optional
-	// +default:=default=.*
+	// +default:=.*
 	Include string `json:"include,omitempty"`
 
 	// Exclude specifies the exclude retention policies.
 	// +optional
-	// +default:=default=^$
+	// +default:=^$
 	Exclude string `json:"exclude,omitempty"`
-}
-
-// PullRequestSpec specifies the pull request configuration (automated pull of local changes into remote) for Gitcd.
-type PullRequestSpec struct {
-	// ConflictResolutions specifies the conflict resolution policy while pulling local changes into remote.
-	// +optional
-	// +default:=default=2
-	ConflictResolutions string `json:"conflictResolutions,omitempty"`
-
-	// PushAfterMerge specifies if the local branch must be pushed to remote after merging from remote.
-	// +optional
-	// +default=true
-	PushAfterMerge bool `json:"pushAfterMerge,omitempty"`
-
-	// TickerDuration species the ticker duration between automated pull of local changes into remote.
-	TickerDuration metav1.Duration `json:"tickerDuration"`
-
-	// MergeCommitterName specifies the committer name to use for merge commits.
-	// +optional
-	MergeCommitterName string `json:"mergeCommitterName,omitempty"`
 }
 
 type ApiserverSpec ImageSpec

@@ -26,4 +26,13 @@ resources:
   kind: GitHubRepository
   path: github.com/trishanku/heaven/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: trishanku.org
+  group: controllers.trishanku.org
+  kind: AutomatedMerge
+  path: github.com/trishanku/heaven/api/v1alpha1
+  version: v1alpha1
 version: "3"

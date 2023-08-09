@@ -1,0 +1,12 @@
+apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+kind: AutomatedMerge
+metadata:
+  labels:
+    app.kubernetes.io/name: automatedmerge
+    app.kubernetes.io/instance: automatedmerge-sample
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trishanku-controller
+  name: automatedmerge-sample
+spec:
+  # TODO(user): Add fields here

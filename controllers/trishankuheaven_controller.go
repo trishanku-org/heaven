@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/trishanku/heaven/api/v1alpha1"
@@ -38,17 +40,69 @@ import (
 	clientcmdv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 )
 
+// gitcdReconciler reconciles a deployment running Gitcd.
+type gitcdReconciler interface {
+	client.Client
+	getScheme() *runtime.Scheme
+	getDefaultGitImage() string
+	getDefaultGitcdImage() string
+	ensureEntrypointsConfigMap(context.Context, metav1.Object, configNames) error
+	createOrUpdateDeployment(context.Context, metav1.Object, *appsv1.Deployment) error
+	newDeployment(metav1.Object, *int32, *v1alpha1.PodTemplateSpec, configNames, string) *appsv1.Deployment
+	appendVolumesForGitcd(*corev1.PodSpec, configNames)
+	appendImagePullSecrets(*corev1.PodSpec, *v1alpha1.GitcdSpec)
+	appendGitcdContainers(*corev1.PodSpec, *v1alpha1.GitcdSpec, string)
+	appendGitPostInitContainer(*corev1.PodSpec, *v1alpha1.GitcdSpec)
+}
+
+// gitcdReconcilerImpl implements gitcdReconciler.
+type gitcdReconcilerImpl struct {
+	client.Client
+	scheme            *runtime.Scheme
+	defaultGitImage   string
+	defaultGitcdImage string
+}
+
+var _ gitcdReconciler = &gitcdReconcilerImpl{}
+
+func (r *gitcdReconcilerImpl) getScheme() *runtime.Scheme {
+	return r.scheme
+}
+
+func (r *gitcdReconcilerImpl) getDefaultGitImage() string {
+	return r.defaultGitImage
+}
+
+func (r *gitcdReconcilerImpl) getDefaultGitcdImage() string {
+	return r.defaultGitcdImage
+}
+
 // TrishankuHeavenReconciler reconciles a TrishankuHeaven object
 type TrishankuHeavenReconciler struct {
-	client.Client
-	Scheme *runtime.Scheme
+	gitcdReconciler
 
 	DefaultEtcdImage      string
-	DefaultCfsslImage     string
-	DefaultKubectlImage   string
-	DefaultGitImage       string
-	DefaultGitcdImage     string
 	DefaultApiserverImage string
+}
+
+func NewTrishankuHeavenReconciler(
+	client client.Client,
+	scheme *runtime.Scheme,
+	defaultEtcdImage,
+	defaultGitImage,
+	defaultGitcdImage,
+	defaultApiserverImage string,
+) *TrishankuHeavenReconciler {
+	return &TrishankuHeavenReconciler{
+		gitcdReconciler: &gitcdReconcilerImpl{
+			Client:            client,
+			scheme:            scheme,
+			defaultGitImage:   defaultGitImage,
+			defaultGitcdImage: defaultGitcdImage,
+		},
+		DefaultEtcdImage:      defaultEtcdImage,
+		DefaultApiserverImage: defaultApiserverImage,
+	}
 }
 
 //+kubebuilder:rbac:groups=controllers.trishanku.org.trishanku.org,resources=trishankuheavens,verbs=get;list;watch;create;update;patch;delete
@@ -86,19 +140,19 @@ func (r *TrishankuHeavenReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// TODO check if controller and owner references are handled by controller-runtime.
 
-	c.init(heaven)
+	c.initForHeaven(heaven)
 
 	l.Info("configNames", "configNames", c)
 
 	if !heaven.Spec.Skip.Cerfificates {
-		ensureFns = append(ensureFns, r.ensureCertificateSecrets(heaven, c)...)
+		ensureFns = append(ensureFns, r.ensureCertificateSecrets(heaven)...)
 	}
 
 	if !heaven.Spec.Skip.Entrypoints {
 		ensureFns = append(ensureFns, r.ensureEntrypointsConfigMap)
 	}
 
-	ensureFns = append(ensureFns, r.ensureDeployment)
+	ensureFns = append(ensureFns, r.ensureDeployment(heaven))
 
 	for _, ensureFn := range ensureFns {
 		if err = ensureFn(ctx, heaven, c); err != nil {
@@ -120,9 +174,10 @@ const (
 	SECRET_KUBECONFIG_ADMIN      = "admin"
 	SECRET_KUBECONFIG_CONTROLLER = "controller"
 	CONFIG_ENTRYPOINTS           = "entrypoints"
+	DEPLOY_HEAVEN                = "heaven"
+	DEPLOY_AUTOMERGE             = "automerge"
 	VOLUME_HOME                  = "home"
 	VOLUME_HOME_PR               = "home-pr"
-	VOLUME_TEMP                  = "temp"
 
 	CONTAINER_ETCD       = "events-etcd"
 	CONTAINER_GIT_PRE    = "git-pre"
@@ -147,7 +202,7 @@ const (
 
 type configNames map[string]string
 
-func (c configNames) init(heaven *v1alpha1.TrishankuHeaven) {
+func (c configNames) initForHeaven(heaven *v1alpha1.TrishankuHeaven) {
 	type configSpec struct {
 		name       string
 		configName *string
@@ -159,6 +214,7 @@ func (c configNames) init(heaven *v1alpha1.TrishankuHeaven) {
 			{name: SECRET_CERT_SERVICE_ACCOUNTS, configName: heaven.Spec.Certificates.ServiceAccountsSecretName},
 			{name: SECRET_CERT_KUBERNETES, configName: heaven.Spec.Certificates.KubernetesSecretName},
 			{name: SECRET_KUBECONFIG_ADMIN, configName: heaven.Spec.Certificates.AdminSecretName},
+			{name: DEPLOY_HEAVEN},
 		}
 
 		entryPointsConfigMapName *string = nil
@@ -194,9 +250,9 @@ func (c configNames) getConfigurationName(config string) string {
 	return c[config]
 }
 
-type ensureFunc func(context.Context, *v1alpha1.TrishankuHeaven, configNames) error
+type ensureFunc func(context.Context, metav1.Object, configNames) error
 
-func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(heaven *v1alpha1.TrishankuHeaven, c configNames) (fns []ensureFunc) {
+func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(heaven *v1alpha1.TrishankuHeaven) (fns []ensureFunc) {
 	type certSpec struct {
 		name, cn, o, ou    string
 		dnsNames           []string
@@ -262,10 +318,10 @@ func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(heaven *v1alpha1.Tr
 
 	for _, cs := range certSpecs {
 		func(cs certSpec) {
-			fns = append(fns, func(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (err error) {
+			fns = append(fns, func(ctx context.Context, owner metav1.Object, c configNames) (err error) {
 				var (
 					secretName = c.getConfigurationName(cs.name)
-					namespace  = heaven.Namespace
+					namespace  = owner.GetNamespace()
 
 					s = &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
@@ -339,6 +395,11 @@ func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(heaven *v1alpha1.Tr
 					}
 				}
 
+				// TODO set owner references for shared secrets.
+				if err = controllerutil.SetControllerReference(owner, s, r.getScheme()); err != nil {
+					return
+				}
+
 				if err = r.Create(ctx, s); err != nil {
 					return
 				}
@@ -351,17 +412,17 @@ func (r *TrishankuHeavenReconciler) ensureCertificateSecrets(heaven *v1alpha1.Tr
 	return
 }
 
-func (r *TrishankuHeavenReconciler) ensureEntrypointsConfigMap(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (err error) {
+func (r *gitcdReconcilerImpl) ensureEntrypointsConfigMap(ctx context.Context, owner metav1.Object, c configNames) (err error) {
 	var cm = &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      c.getConfigurationName(CONFIG_ENTRYPOINTS),
-			Namespace: heaven.Namespace,
+			Namespace: owner.GetNamespace(),
 		},
 	}
 
-	_, err = ctrl.CreateOrUpdate(ctx, r.Client, cm, func() error {
+	_, err = ctrl.CreateOrUpdate(ctx, r, cm, func() error {
 		cm.Name = c.getConfigurationName(CONFIG_ENTRYPOINTS)
-		cm.Namespace = heaven.Namespace
+		cm.Namespace = owner.GetNamespace()
 
 		if cm.Data == nil {
 			cm.Data = make(map[string]string)
@@ -468,7 +529,46 @@ if [ "$GITCD_PUSH_AFTER_INIT" != "" ]; then
 	git push
 fi
 `
+		if existing := metav1.GetControllerOf(cm); existing == nil {
+			if err := controllerutil.SetControllerReference(owner, cm, r.getScheme()); err != nil {
+				return err
+			}
+		}
+
 		return nil
+	})
+
+	return
+}
+
+func (r *gitcdReconcilerImpl) createOrUpdateDeployment(ctx context.Context, owner metav1.Object, rd *appsv1.Deployment) (err error) {
+	var d = rd.DeepCopy()
+
+	_, err = ctrl.CreateOrUpdate(ctx, r, d, func() (err error) {
+		// Ensure annotations and labels.
+		for _, s := range []struct {
+			src map[string]string
+			dst *map[string]string
+		}{
+			{dst: &d.Labels, src: rd.Labels},
+			{dst: &d.Annotations, src: rd.Annotations},
+		} {
+			if *s.dst == nil || len(*s.dst) <= 0 {
+				*s.dst = s.src
+				continue
+			}
+			for k, v := range s.src {
+				(*s.dst)[k] = v
+			}
+		}
+
+		d.Spec = rd.Spec
+
+		if existing := metav1.GetControllerOf(d); existing == nil {
+			err = controllerutil.SetControllerReference(owner, d, r.getScheme())
+		}
+
+		return
 	})
 
 	return
@@ -490,30 +590,84 @@ func getImagePullPolicy(spec *v1alpha1.ImageSpec) corev1.PullPolicy {
 	return ""
 }
 
-func getCreateBranchEnvVar(name string, branch *v1alpha1.BranchSpec) corev1.EnvVar {
-	var create bool
-
-	if branch != nil {
-		create = !branch.NoCreateBranch
-	}
-
+func getCreateBranchEnvVar(name string, create bool) corev1.EnvVar {
 	return corev1.EnvVar{Name: name, Value: strconv.FormatBool(create)}
 }
 
-func getRemoteBranchData(heaven *v1alpha1.TrishankuHeaven) string {
-	if heaven != nil && heaven.Spec.Gitcd.Branches.Remote != nil {
-		return heaven.Spec.Gitcd.Branches.Remote.Data
+func getRemoteBranchData(remote *v1alpha1.RemoteSpec) string {
+	if remote != nil && remote.Branches != nil {
+		return remote.Branches.Data
 	}
 
 	return ""
 }
 
-func getRemoteBranchMetadata(heaven *v1alpha1.TrishankuHeaven) string {
-	if heaven != nil && heaven.Spec.Gitcd.Branches.Remote != nil {
-		return heaven.Spec.Gitcd.Branches.Remote.Metadata
+func getRemoteBranchMetadata(remote *v1alpha1.RemoteSpec) string {
+	if remote != nil && remote.Branches != nil {
+		return remote.Branches.Metadata
 	}
 
 	return ""
+}
+
+func getRemoteNames(remotes []v1alpha1.RemoteSpec) string {
+	var ss []string
+
+	for _, r := range remotes {
+		ss = append(ss, r.Name)
+	}
+
+	return strings.Join(ss, ":")
+}
+
+func getRemoteDataReferenceNames(remotes []v1alpha1.RemoteSpec) string {
+	var ss []string
+
+	for _, r := range remotes {
+		ss = append(ss, "refs/heads/"+r.Branches.Data)
+	}
+
+	return strings.Join(ss, ":")
+}
+
+func getRemoteMetadataReferenceNames(remotes []v1alpha1.RemoteSpec) string {
+	var ss []string
+
+	for _, r := range remotes {
+		ss = append(ss, "refs/heads/"+r.Branches.Metadata)
+	}
+
+	return strings.Join(ss, ":")
+}
+
+func getMergeRetentionPoliciesInclude(remotes []v1alpha1.RemoteSpec) string {
+	var ss []string
+
+	for _, r := range remotes {
+		ss = append(ss, r.RetentionPolicies.Include)
+	}
+
+	return strings.Join(ss, ":")
+}
+
+func getMergeRetentionPoliciesExclude(remotes []v1alpha1.RemoteSpec) string {
+	var ss []string
+
+	for _, r := range remotes {
+		ss = append(ss, r.RetentionPolicies.Exclude)
+	}
+
+	return strings.Join(ss, ":")
+}
+
+func getMergeConflictResolutions(remotes []v1alpha1.RemoteSpec) string {
+	var ss []string
+
+	for _, r := range remotes {
+		ss = append(ss, strconv.Itoa(int(r.ConflictResolution)))
+	}
+
+	return strings.Join(ss, ":")
 }
 
 func appendMergeFlagsToCommand(c *corev1.Container, mergeFlags map[string]string) {
@@ -531,55 +685,41 @@ func getCommitterName(heaven *v1alpha1.TrishankuHeaven) string {
 
 	return ""
 }
-func getMergeCommitterName(heaven *v1alpha1.TrishankuHeaven) string {
-	if heaven.Spec.Gitcd.PullRequest != nil && len(heaven.Spec.Gitcd.PullRequest.MergeCommitterName) > 0 {
-		return heaven.Spec.Gitcd.PullRequest.MergeCommitterName
+
+func getRemoteName(remote *v1alpha1.RemoteSpec) string {
+	if remote != nil {
+		return remote.Name
 	}
 
-	return getCommitterName(heaven)
+	return ""
 }
 
-func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (d *appsv1.Deployment, err error) {
-	var (
-		podSpec                   *corev1.PodSpec
-		ntic, ntc                 int
-		gitcd, apiserver, gitcdPR corev1.Container
-		useEventsEtcd             = heaven.Spec.EventsEtcd != nil && heaven.Spec.EventsEtcd.Local != nil
-		gitCredsSecretName        string
-	)
-
-	if heaven.Spec.Gitcd == nil {
-		err = errors.New("no gitcd configuration found")
-		return
+func getRemoteRepo(remote *v1alpha1.RemoteSpec) string {
+	if remote != nil {
+		return remote.Name
 	}
+	return ""
+}
 
-	gitCredsSecretName = heaven.Spec.Gitcd.CredentialsSecretName
-
+func (r *gitcdReconcilerImpl) newDeployment(owner metav1.Object, replicas *int32, podTemplate *v1alpha1.PodTemplateSpec, c configNames, config string) (d *appsv1.Deployment) {
 	d = &appsv1.Deployment{
-		ObjectMeta: *heaven.Spec.App.PodTemplate.ObjectMeta.DeepCopy(),
+		ObjectMeta: *podTemplate.ObjectMeta.DeepCopy(),
 		Spec: appsv1.DeploymentSpec{
-			Replicas: heaven.Spec.App.Replicas,
-			Selector: &metav1.LabelSelector{MatchLabels: heaven.Spec.App.PodTemplate.ObjectMeta.Labels},
+			Replicas: replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: podTemplate.ObjectMeta.Labels},
 			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: *heaven.Spec.App.PodTemplate.ObjectMeta.DeepCopy(),
-				Spec:       *heaven.Spec.App.PodTemplate.Spec.DeepCopy(),
+				ObjectMeta: *podTemplate.ObjectMeta.DeepCopy(),
+				Spec:       *podTemplate.Spec.DeepCopy(),
 			},
 		},
 	}
 
-	d.Name, d.Namespace = heaven.Name, heaven.Namespace
+	d.Name, d.Namespace = c.getConfigurationName(config), owner.GetNamespace()
+	return
+}
 
-	podSpec = &d.Spec.Template.Spec
-	ntic, ntc = len(podSpec.InitContainers), len(podSpec.Containers)
-
-	for _, secret := range []string{SECRET_CERT_KUBERNETES, SECRET_CERT_SERVICE_ACCOUNTS} {
-		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-			Name:         secret,
-			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: c.getConfigurationName(secret)}},
-		})
-	}
-
+func (r *gitcdReconcilerImpl) appendVolumesForGitcd(podSpec *corev1.PodSpec, c configNames) {
 	podSpec.Volumes = append(
 		podSpec.Volumes,
 		corev1.Volume{
@@ -593,29 +733,37 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, h
 			Name:         VOLUME_HOME,
 			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 		},
-		corev1.Volume{
-			Name:         VOLUME_TEMP,
-			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{Medium: corev1.StorageMediumMemory}},
-		},
+	)
+}
+
+func (r *gitcdReconcilerImpl) appendImagePullSecrets(podSpec *corev1.PodSpec, gitcdSpec *v1alpha1.GitcdSpec) {
+	if len(gitcdSpec.ImagePullSecretName) > 0 {
+		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: gitcdSpec.ImagePullSecretName})
+	}
+}
+
+func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, gitcdSpec *v1alpha1.GitcdSpec, committerName string) {
+	var (
+		gitCredsSecretName string
+		remotes            []*v1alpha1.RemoteSpec
+		gitcd              corev1.Container
 	)
 
-	if useEventsEtcd {
-		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-			Name:         CONTAINER_ETCD,
-			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-		})
+	gitCredsSecretName = gitcdSpec.CredentialsSecretName
+
+	for _, r := range gitcdSpec.Git.Remotes {
+		remotes = append(remotes, r.DeepCopy())
 	}
 
-	if len(heaven.Spec.Gitcd.ImagePullSecretName) > 0 {
-		podSpec.ImagePullSecrets = append(podSpec.ImagePullSecrets, corev1.LocalObjectReference{Name: heaven.Spec.Gitcd.ImagePullSecretName})
+	if len(remotes) <= 0 {
+		remotes = append(remotes, nil) // We need to init the repo even if there are no remotes.
 	}
 
-	podSpec.InitContainers = append(
-		podSpec.InitContainers,
-		corev1.Container{
+	for _, remote := range remotes {
+		podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
 			Name:            CONTAINER_GIT_PRE,
-			Image:           getImage(heaven.Spec.Gitcd.GitImage, r.DefaultGitImage),
-			ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
+			Image:           getImage(gitcdSpec.GitImage, r.getDefaultGitImage()),
+			ImagePullPolicy: getImagePullPolicy(gitcdSpec.GitImage),
 			Command:         []string{path.Join(BASE_PATH_ENTRYPOINTS, ENTRYPOINT_GIT_PRE)},
 			Env: []corev1.EnvVar{
 				{
@@ -639,57 +787,59 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, h
 						Key:                  KEY_SECRET_URL,
 					}},
 				},
-				{Name: "GITCD_COMMITTER_NAME", Value: getCommitterName(heaven)},
-				{Name: "GITCD_BRANCH_DATA", Value: heaven.Spec.Gitcd.Branches.Local.Data},
-				{Name: "GITCD_BRANCH_METADATA", Value: heaven.Spec.Gitcd.Branches.Local.Metadata},
-				getCreateBranchEnvVar("GITCD_CREATE_LOCAL_BRANCH", &heaven.Spec.Gitcd.Branches.Local),
-				{Name: "GITCD_REMOTE_REPO", Value: heaven.Spec.Gitcd.RemoteRepo},
-				{Name: "GITCD_REMOTE_BRANCH_DATA", Value: getRemoteBranchData(heaven)},
-				{Name: "GITCD_REMOTE_BRANCH_METADATA", Value: getRemoteBranchMetadata(heaven)},
-				getCreateBranchEnvVar("GITCD_CREATE_REMOTE_BRANCH", heaven.Spec.Gitcd.Branches.Remote),
+				{Name: "GITCD_COMMITTER_NAME", Value: committerName},
+				{Name: "GITCD_BRANCH_DATA", Value: gitcdSpec.Git.Branches.Data},
+				{Name: "GITCD_BRANCH_METADATA", Value: gitcdSpec.Git.Branches.Metadata},
+				getCreateBranchEnvVar("GITCD_CREATE_LOCAL_BRANCH", !gitcdSpec.Git.Branches.NoCreateBranch),
+				{Name: "GITCD_REMOTE_NAME", Value: getRemoteName(remote)},
+				{Name: "GITCD_REMOTE_REPO", Value: getRemoteRepo(remote)},
+				{Name: "GITCD_REMOTE_BRANCH_DATA", Value: getRemoteBranchData(remote)},
+				{Name: "GITCD_REMOTE_BRANCH_METADATA", Value: getRemoteBranchMetadata(remote)},
+				getCreateBranchEnvVar("GITCD_CREATE_REMOTE_BRANCH", remote != nil && !remote.Branches.NoCreateBranch),
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: CONFIG_ENTRYPOINTS, MountPath: BASE_PATH_ENTRYPOINTS, ReadOnly: true},
 				{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
 			},
+		})
+	}
+
+	podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
+		Name:            CONTAINER_GITCD_INIT,
+		Image:           getImage(gitcdSpec.GitcdImage, r.getDefaultGitcdImage()),
+		ImagePullPolicy: getImagePullPolicy(gitcdSpec.GitcdImage),
+		Args: []string{
+			"init",
+			"--repo=/root/repo",
+			"--data-reference-names=default=refs/heads/" + gitcdSpec.Git.Branches.Data,
+			"--metadata-reference-names=default=refs/heads/" + gitcdSpec.Git.Branches.Metadata,
 		},
-		corev1.Container{
-			Name:            CONTAINER_GITCD_INIT,
-			Image:           getImage(heaven.Spec.Gitcd.GitcdImage, r.DefaultGitcdImage),
-			ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitcdImage),
-			Args: []string{
-				"init",
-				"--repo=/root/repo",
-				"--data-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Data,
-				"--metadata-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Metadata,
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
-			},
+		VolumeMounts: []corev1.VolumeMount{
+			{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
 		},
-	)
+	})
 
 	gitcd = corev1.Container{
 		Name:            CONTAINER_GITCD,
-		Image:           getImage(heaven.Spec.Gitcd.GitcdImage, r.DefaultGitcdImage),
-		ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitcdImage),
+		Image:           getImage(gitcdSpec.GitcdImage, r.getDefaultGitcdImage()),
+		ImagePullPolicy: getImagePullPolicy(gitcdSpec.GitcdImage),
 		Command: []string{
 			"/gitcd",
 			"serve",
 			"--repo=/root/repo",
-			"--committer-name=" + getCommitterName(heaven),
-			"--data-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Data,
-			"--metadata-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Metadata,
+			"--committer-name=" + committerName,
+			"--data-reference-names=default=refs/heads/" + gitcdSpec.Git.Branches.Data,
+			"--metadata-reference-names=default=refs/heads/" + gitcdSpec.Git.Branches.Metadata,
 			"--key-prefixes=default=/registry",
-			"--pull-ticker-duration=" + heaven.Spec.Gitcd.Pull.TickerDuration.Duration.String(),
-			"--remote-names=default=origin",
+			"--pull-ticker-duration=" + gitcdSpec.Pull.TickerDuration.Duration.String(),
+			"--remote-names=default=" + getRemoteNames(gitcdSpec.Git.Remotes),
 			"--no-fast-forwards=default=false",
-			"--remote-data-reference-names=default=refs/heads/" + getRemoteBranchData(heaven),
-			"--remote-meta-reference-names=default=refs/heads/" + getRemoteBranchMetadata(heaven),
+			"--remote-data-reference-names=default=" + getRemoteDataReferenceNames(gitcdSpec.Git.Remotes),
+			"--remote-meta-reference-names=default=" + getRemoteMetadataReferenceNames(gitcdSpec.Git.Remotes),
 			"--listen-urls=default=http://0.0.0.0:2479/",
 			"--advertise-client-urls=default=http://127.0.0.1:2479/",
 			"--watch-dispatch-channel-size=1",
-			"--push-after-merges=default=" + strconv.FormatBool(heaven.Spec.Gitcd.Pull.PushAfterMerge),
+			"--push-after-merges=default=" + strconv.FormatBool(gitcdSpec.Pull.PushAfterMerge),
 		},
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
@@ -699,13 +849,69 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, h
 	appendMergeFlagsToCommand(
 		&gitcd,
 		map[string]string{
-			"--merge-retention-policies-include": heaven.Spec.Gitcd.Pull.RetentionPolicies.Include,
-			"--merge-retention-policies-exclude": heaven.Spec.Gitcd.Pull.RetentionPolicies.Exclude,
-			"--merge-conflict-resolutions":       heaven.Spec.Gitcd.Pull.ConflictResolutions,
+			"--merge-retention-policies-include": "default=" + getMergeRetentionPoliciesInclude(gitcdSpec.Git.Remotes),
+			"--merge-retention-policies-exclude": "default=" + getMergeRetentionPoliciesExclude(gitcdSpec.Git.Remotes),
+			"--merge-conflict-resolutions":       "default=" + getMergeConflictResolutions(gitcdSpec.Git.Remotes),
 		},
 	)
 
 	podSpec.Containers = append(podSpec.Containers, gitcd)
+}
+
+func (r *gitcdReconcilerImpl) appendGitPostInitContainer(podSpec *corev1.PodSpec, gitcdSpec *v1alpha1.GitcdSpec) {
+	if len(gitcdSpec.Git.Remotes) > 0 {
+		podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
+			Name:            CONTAINER_GIT_POST,
+			Image:           getImage(gitcdSpec.GitImage, r.getDefaultGitImage()),
+			ImagePullPolicy: getImagePullPolicy(gitcdSpec.GitImage),
+			Command: []string{
+				"git",
+				"push",
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
+			},
+			WorkingDir: "/root/repo",
+		})
+	}
+}
+
+func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (d *appsv1.Deployment, err error) {
+	var (
+		podSpec       *corev1.PodSpec
+		ntic, ntc     int
+		apiserver     corev1.Container
+		useEventsEtcd = heaven.Spec.EventsEtcd != nil && heaven.Spec.EventsEtcd.Local != nil
+	)
+
+	if heaven.Spec.Gitcd == nil {
+		err = errors.New("no gitcd configuration found")
+		return
+	}
+
+	d = r.newDeployment(heaven, heaven.Spec.App.Replicas, &heaven.Spec.App.PodTemplate, c, DEPLOY_HEAVEN)
+	podSpec = &d.Spec.Template.Spec
+	ntic, ntc = len(podSpec.InitContainers), len(podSpec.Containers)
+
+	for _, secret := range []string{SECRET_CERT_KUBERNETES, SECRET_CERT_SERVICE_ACCOUNTS} {
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name:         secret,
+			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: c.getConfigurationName(secret)}},
+		})
+	}
+
+	r.appendVolumesForGitcd(podSpec, c)
+
+	if useEventsEtcd {
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name:         CONTAINER_ETCD,
+			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+		})
+	}
+
+	r.appendImagePullSecrets(podSpec, heaven.Spec.Gitcd)
+
+	r.appendGitcdContainers(podSpec, heaven.Spec.Gitcd, getCommitterName(heaven))
 
 	apiserver = corev1.Container{
 		Name:            CONTAINER_APISERVER,
@@ -774,105 +980,7 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, h
 
 	podSpec.Containers = append(podSpec.Containers, apiserver)
 
-	if heaven.Spec.Gitcd.PullRequest != nil && heaven.Spec.Gitcd.PullRequest.TickerDuration.Duration > 0 {
-		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-			Name:         VOLUME_HOME_PR,
-			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-		})
-
-		podSpec.InitContainers = append(
-			podSpec.InitContainers,
-			corev1.Container{
-				Name:            CONTAINER_GIT_POST,
-				Image:           getImage(heaven.Spec.Gitcd.GitImage, r.DefaultGitImage),
-				ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
-				Command: []string{
-					"git",
-					"push",
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
-				},
-				WorkingDir: "/root/repo",
-			},
-			corev1.Container{
-				Name:            CONTAINER_GIT_PRE_PR,
-				Image:           getImage(heaven.Spec.Gitcd.GitImage, r.DefaultGitImage),
-				ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitImage),
-				Command:         []string{path.Join(BASE_PATH_ENTRYPOINTS, ENTRYPOINT_GIT_PRE)},
-				Env: []corev1.EnvVar{
-					{
-						Name: "GIT_CRED_USERNAME",
-						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
-							Key:                  corev1.BasicAuthUsernameKey,
-						}},
-					},
-					{
-						Name: "GIT_CRED_PASSWORD",
-						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
-							Key:                  corev1.BasicAuthPasswordKey,
-						}},
-					},
-					{
-						Name: "GIT_CRED_URL",
-						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: gitCredsSecretName},
-							Key:                  KEY_SECRET_URL,
-						}},
-					},
-					{Name: "GITCD_COMMITTER_NAME", Value: getMergeCommitterName(heaven)},
-					{Name: "GITCD_BRANCH_DATA", Value: getRemoteBranchData(heaven)},
-					{Name: "GITCD_BRANCH_METADATA", Value: getRemoteBranchMetadata(heaven)},
-					getCreateBranchEnvVar("GITCD_CREATE_LOCAL_BRANCH", heaven.Spec.Gitcd.Branches.Remote),
-					{Name: "GITCD_REMOTE_REPO", Value: heaven.Spec.Gitcd.RemoteRepo},
-					{Name: "GITCD_REMOTE_BRANCH_DATA", Value: heaven.Spec.Gitcd.Branches.Local.Data},
-					{Name: "GITCD_REMOTE_BRANCH_METADATA", Value: heaven.Spec.Gitcd.Branches.Local.Metadata},
-					getCreateBranchEnvVar("GITCD_CREATE_REMOTE_BRANCH", &heaven.Spec.Gitcd.Branches.Local),
-					{Name: "GITCD_PUSH_AFTER_INIT", Value: "x"},
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{Name: CONFIG_ENTRYPOINTS, MountPath: BASE_PATH_ENTRYPOINTS, ReadOnly: true},
-					{Name: VOLUME_HOME_PR, MountPath: BASE_PATH_HOME},
-				},
-			},
-		)
-
-		gitcdPR = corev1.Container{
-			Name:            CONTAINER_GITCD_PR,
-			Image:           getImage(heaven.Spec.Gitcd.GitcdImage, r.DefaultGitcdImage),
-			ImagePullPolicy: getImagePullPolicy(heaven.Spec.Gitcd.GitcdImage),
-			Command: []string{
-				"/gitcd",
-				"pull",
-				"--repo=/root/repo",
-				"--committer-name=pr-" + getCommitterName(heaven),
-				"--data-reference-names=default=refs/heads/" + getRemoteBranchData(heaven),
-				"--metadata-reference-names=default=refs/heads/" + getRemoteBranchMetadata(heaven),
-				"--no-fast-forwards=default=false",
-				"--push-after-merges=default=" + strconv.FormatBool(heaven.Spec.Gitcd.PullRequest.PushAfterMerge),
-				"--remote-names=default=origin",
-				"--remote-data-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Data,
-				"--remote-meta-reference-names=default=refs/heads/" + heaven.Spec.Gitcd.Branches.Local.Metadata,
-				"--pull-ticker-duration=" + heaven.Spec.Gitcd.PullRequest.TickerDuration.Duration.String(),
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{Name: VOLUME_HOME_PR, MountPath: BASE_PATH_HOME},
-			},
-		}
-
-		appendMergeFlagsToCommand(
-			&gitcdPR,
-			map[string]string{
-				"--merge-retention-policies-include": heaven.Spec.Gitcd.Pull.RetentionPolicies.Include,
-				"--merge-retention-policies-exclude": heaven.Spec.Gitcd.Pull.RetentionPolicies.Exclude,
-				"--merge-conflict-resolutions":       heaven.Spec.Gitcd.PullRequest.ConflictResolutions,
-			},
-		)
-
-		podSpec.Containers = append(podSpec.Containers, gitcdPR)
-	}
+	r.appendGitPostInitContainer(podSpec, heaven.Spec.Gitcd)
 
 	if len(heaven.Spec.App.KubeconfigMountPath) > 0 {
 		var baseMountPath, kubeconfigFileName = path.Split(heaven.Spec.App.KubeconfigMountPath)
@@ -917,61 +1025,40 @@ func setKubeconfigVolumeMount(c *corev1.Container, kubeconfigMountPath string) {
 	})
 }
 
-func (r *TrishankuHeavenReconciler) ensureDeployment(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (err error) {
-	var d, rd *appsv1.Deployment
+func (r *TrishankuHeavenReconciler) ensureDeployment(heaven *v1alpha1.TrishankuHeaven) ensureFunc {
+	return func(ctx context.Context, owner metav1.Object, c configNames) (err error) {
+		var d, rd *appsv1.Deployment
 
-	if heaven.Spec.Skip.App {
-		d = &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      heaven.Name,
-				Namespace: heaven.Namespace,
-			},
-		}
-
-		if err = r.Delete(ctx, d); apierrors.IsNotFound(err) {
-			err = nil // Ignore if deployment does not exist.
-		}
-
-		return
-	}
-
-	if heaven.Spec.Certificates.Controller == nil {
-		return fmt.Errorf("controller certificates not configured for %q", client.ObjectKeyFromObject(heaven).String())
-	}
-
-	if heaven.Spec.App == nil {
-		return fmt.Errorf("controller app not configured for %q", client.ObjectKeyFromObject(heaven).String())
-	}
-
-	if rd, err = r.generateDeploymentFor(ctx, heaven, c); err != nil {
-		return
-	}
-
-	d = rd.DeepCopy()
-
-	_, err = ctrl.CreateOrUpdate(ctx, r.Client, d, func() (err error) {
-		// Ensure annotations and labels.
-		for _, s := range []struct {
-			src map[string]string
-			dst *map[string]string
-		}{
-			{dst: &d.Labels, src: rd.Labels},
-			{dst: &d.Annotations, src: rd.Annotations},
-		} {
-			if *s.dst == nil || len(*s.dst) <= 0 {
-				*s.dst = s.src
-				continue
+		if heaven.Spec.Skip.App {
+			d = &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      heaven.Name,
+					Namespace: heaven.Namespace,
+				},
 			}
-			for k, v := range s.src {
-				(*s.dst)[k] = v
+
+			if err = r.Delete(ctx, d); apierrors.IsNotFound(err) {
+				err = nil // Ignore if deployment does not exist.
 			}
+
+			return
 		}
 
-		d.Spec = rd.Spec
-		return
-	})
+		if heaven.Spec.Certificates.Controller == nil {
+			return fmt.Errorf("controller certificates not configured for %q", client.ObjectKeyFromObject(heaven).String())
+		}
 
-	return
+		if heaven.Spec.App == nil {
+			return fmt.Errorf("controller app not configured for %q", client.ObjectKeyFromObject(heaven).String())
+		}
+
+		if rd, err = r.generateDeploymentFor(ctx, heaven, c); err != nil {
+			return
+		}
+
+		err = r.createOrUpdateDeployment(ctx, owner, rd)
+		return
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
