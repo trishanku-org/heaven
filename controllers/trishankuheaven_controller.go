@@ -52,7 +52,6 @@ type gitcdReconciler interface {
 	appendVolumesForGitcd(*corev1.PodSpec, configNames)
 	appendImagePullSecrets(*corev1.PodSpec, *v1alpha1.GitcdSpec)
 	appendGitcdContainers(*corev1.PodSpec, *v1alpha1.GitcdSpec, string)
-	appendGitPostInitContainer(*corev1.PodSpec, *v1alpha1.GitcdSpec)
 }
 
 // gitcdReconcilerImpl implements gitcdReconciler.
@@ -527,10 +526,6 @@ prepare_branch "$GITCD_BRANCH_DATA" "$GITCD_REMOTE_BRANCH_DATA"
 prepare_branch "$GITCD_BRANCH_METADATA" "$GITCD_REMOTE_BRANCH_METADATA"
 
 init_data_branch "$GITCD_BRANCH_DATA"
-
-if [ "$GITCD_PUSH_AFTER_INIT" != "" ]; then
-	git push
-fi
 `
 		if existing := metav1.GetControllerOf(cm); existing == nil {
 			if err := controllerutil.SetControllerReference(owner, cm, r.getScheme()); err != nil {
@@ -870,24 +865,6 @@ func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, git
 	podSpec.Containers = append(podSpec.Containers, gitcd)
 }
 
-func (r *gitcdReconcilerImpl) appendGitPostInitContainer(podSpec *corev1.PodSpec, gitcdSpec *v1alpha1.GitcdSpec) {
-	if len(gitcdSpec.Git.Remotes) > 0 {
-		podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
-			Name:            CONTAINER_GIT_POST,
-			Image:           getImage(gitcdSpec.GitImage, r.getDefaultGitImage()),
-			ImagePullPolicy: getImagePullPolicy(gitcdSpec.GitImage),
-			Command: []string{
-				"git",
-				"push",
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},
-			},
-			WorkingDir: "/root/repo",
-		})
-	}
-}
-
 func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, heaven *v1alpha1.TrishankuHeaven, c configNames) (d *appsv1.Deployment, err error) {
 	var (
 		podSpec       *corev1.PodSpec
@@ -991,8 +968,6 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, h
 	}
 
 	podSpec.Containers = append(podSpec.Containers, apiserver)
-
-	r.appendGitPostInitContainer(podSpec, heaven.Spec.Gitcd)
 
 	if len(heaven.Spec.App.KubeconfigMountPath) > 0 {
 		var baseMountPath, kubeconfigFileName = path.Split(heaven.Spec.App.KubeconfigMountPath)

@@ -158,8 +158,6 @@ func (r *AutomatedMergeReconciler) generateDeploymentFor(ctx context.Context, am
 
 	r.appendGitcdContainers(podSpec, &am.Spec.Gitcd, am.Spec.App.CommitterName)
 
-	r.appendGitPostInitContainer(podSpec, &am.Spec.Gitcd)
-
 	return
 }
 
