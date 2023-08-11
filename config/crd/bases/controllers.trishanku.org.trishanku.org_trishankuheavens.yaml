@@ -7880,26 +7880,16 @@ spec:
               gitcd:
                 description: Gitcd specifies the Gitcd configuration.
                 properties:
-                  branches:
-                    description: Branches specifies the local and remote data and
-                      metadata branches for gitcd.
+                  credentialsSecretName:
+                    description: CredentialsSecretName specifies the name of the secret
+                      containing the .git-credentials file.
+                    type: string
+                  git:
+                    description: Git specifies the configuration for Git repo that
+                      will back gitcd.
                     properties:
-                      local:
-                        description: Local specifies the local data and metadata branches.
-                        properties:
-                          data:
-                            description: Data specifies the data branch.
-                            type: string
-                          metadata:
-                            description: Metadata specifies the data branch.
-                            type: string
-                          noCreateBranch:
-                            description: NoCreateBranch specifies if branches should
-                              not be created if they do not exist.
-                            type: boolean
-                        type: object
-                      remote:
-                        description: Remote specifies the remote data and metadata
+                      branches:
+                        description: Branches specifies the local data and metadata
                           branches.
                         properties:
                           data:
@@ -7913,13 +7903,61 @@ spec:
                               not be created if they do not exist.
                             type: boolean
                         type: object
+                      remotes:
+                        description: Remotes specifies the details about one or more
+                          remote repos and data/metadata branches for the git repo
+                          that will back gitcd.
+                        items:
+                          description: RemoteSpec specifies the details about one
+                            or more remote repos and data/metadata branches for the
+                            git repo that will back gitcd.
+                          properties:
+                            branches:
+                              description: Branches specifies the data and metadata
+                                branches.
+                              properties:
+                                data:
+                                  description: Data specifies the data branch.
+                                  type: string
+                                metadata:
+                                  description: Metadata specifies the data branch.
+                                  type: string
+                                noCreateBranch:
+                                  description: NoCreateBranch specifies if branches
+                                    should not be created if they do not exist.
+                                  type: boolean
+                              type: object
+                            conflictResolution:
+                              description: ConflictResolution specifies the conflict
+                                resolution policy while merging changes from remote.
+                              type: integer
+                            name:
+                              description: Name specifies the name of the remote repo.
+                                Defaults to origin.
+                              type: string
+                            repo:
+                              description: RemoteRepo specifies the URL or path to
+                                the remote repo for the git repo that will back gitcd.
+                              type: string
+                            retentionPolicies:
+                              description: RetentionPolicies specifies the retention
+                                policies while merging changes from remote.
+                              properties:
+                                exclude:
+                                  description: Exclude specifies the exclude retention
+                                    policies.
+                                  type: string
+                                include:
+                                  description: Include specifies the include retention
+                                    policies.
+                                  type: string
+                              type: object
+                          type: object
+                        type: array
                     required:
-                    - local
+                    - branches
+                    - remotes
                     type: object
-                  credentialsSecretName:
-                    description: CredentialsSecretName specifies the name of the secret
-                      containing the .git-credentials file.
-                    type: string
                   gitImage:
                     description: GitImage specifie the git container image.
                     properties:
@@ -7949,25 +7987,14 @@ spec:
                   pull:
                     description: Pull specifies the pull configuration for gitcd.
                     properties:
-                      conflictResolutions:
-                        description: ConflictResolutions specifies the conflict resolution
-                          policy while merging changes from remote.
-                        type: string
                       pushAfterMerge:
                         description: PushAfterMerge specifies if the local branch
                           must be pushed to remote after merging from remote.
                         type: boolean
-                      retentionPolicies:
-                        description: RetentionPolicies specifies the retention policies
-                          while merging changes from remote.
-                        properties:
-                          exclude:
-                            description: Exclude specifies the exclude retention policies.
-                            type: string
-                          include:
-                            description: Include specifies the include retention policies.
-                            type: string
-                        type: object
+                      pushOnPullFailure:
+                        description: PushOnPullFailure specifies if the local branch
+                          must be pushed to remote even if fetching from remote fails.
+                        type: boolean
                       tickerDuration:
                         description: TickerDuration species the ticker duration between
                           automated pulls from remote.
@@ -7975,36 +8002,9 @@ spec:
                     required:
                     - tickerDuration
                     type: object
-                  pullRequest:
-                    description: PullRequest specifies the pull request configuration
-                      for gitcd.
-                    properties:
-                      conflictResolutions:
-                        description: ConflictResolutions specifies the conflict resolution
-                          policy while pulling local changes into remote.
-                        type: string
-                      mergeCommitterName:
-                        description: MergeCommitterName specifies the committer name
-                          to use for merge commits.
-                        type: string
-                      pushAfterMerge:
-                        description: PushAfterMerge specifies if the local branch
-                          must be pushed to remote after merging from remote.
-                        type: boolean
-                      tickerDuration:
-                        description: TickerDuration species the ticker duration between
-                          automated pull of local changes into remote.
-                        type: string
-                    required:
-                    - tickerDuration
-                    type: object
-                  remoteRepo:
-                    description: RemoteRepo specifies the URL or path to the remote
-                      repo for the git repo that will back gitcd.
-                    type: string
                 required:
-                - branches
                 - credentialsSecretName
+                - git
                 - pull
                 type: object
               skip:

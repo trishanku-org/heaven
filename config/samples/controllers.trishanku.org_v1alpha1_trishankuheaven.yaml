@@ -41,21 +41,22 @@ spec:
   gitcd:
     credentialsSecretName: git-cred
     imagePullSecretName: gar-cred
-    remoteRepo: https://github.com/trishanku-org/sample-k8s
-    branches:
-      local:
+    gitcdImage:
+      imagePullPolicy: Always
+    git:
+      branches:
         data: kcm/data
         metadata: kcm/metadata
-      remote:
-        data: upstream/data
-        metadata: upstream/metadata
+      remotes:
+      - name: origin
+        repo: https://github.com/trishanku-org/sample-k8s
+        branches:
+          data: upstream/data
+          metadata: upstream/metadata
     pull:
       pushAfterMerge: true
+      pushOnPullFailure: true
       tickerDuration: 15s
-    pullRequest:
-      conflictResolutions: default=2
-      pushAfterMerge: true
-      tickerDuration: 25s
   app:
     replicas: 1
     entrypointsConfigMapName: sample-k8s-entrypoints
@@ -212,322 +213,322 @@ spec:
 #       leaderElect: false
 #     parallelism: 1
 
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
-    app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: sample-k8s-mcm-crds
-    app.kubernetes.io/part-of: trishanku-controller
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: trishanku-controller
-  name: sample-k8s-mcm-crds
-automountServiceAccountToken: true
+# ---
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   labels:
+#     app.kubernetes.io/name: trishankuheaven
+#     app.kubernetes.io/instance: sample-k8s-mcm-crds
+#     app.kubernetes.io/part-of: trishanku-controller
+#     app.kubernetes.io/managed-by: kustomize
+#     app.kubernetes.io/created-by: trishanku-controller
+#   name: sample-k8s-mcm-crds
+# automountServiceAccountToken: true
 
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  labels:
-    app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: sample-k8s-mcm-crds
-    app.kubernetes.io/part-of: trishanku-controller
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: trishanku-controller
-  name: sample-k8s-mcm-crds
-rules:
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - pods/portforward
-  verbs:
-  - create
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: Role
+# metadata:
+#   labels:
+#     app.kubernetes.io/name: trishankuheaven
+#     app.kubernetes.io/instance: sample-k8s-mcm-crds
+#     app.kubernetes.io/part-of: trishanku-controller
+#     app.kubernetes.io/managed-by: kustomize
+#     app.kubernetes.io/created-by: trishanku-controller
+#   name: sample-k8s-mcm-crds
+# rules:
+# - apiGroups:
+#   - apps
+#   resources:
+#   - deployments
+#   verbs:
+#   - get
+# - apiGroups:
+#   - ""
+#   resources:
+#   - pods
+#   verbs:
+#   - get
+#   - list
+# - apiGroups:
+#   - ""
+#   resources:
+#   - pods/portforward
+#   verbs:
+#   - create
 
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: sample-k8s-mcm-crds
-    app.kubernetes.io/part-of: trishanku-controller
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: trishanku-controller
-  name: sample-k8s-mcm-crds
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: sample-k8s-mcm-crds
-subjects:
-- kind: ServiceAccount
-  name: sample-k8s-mcm-crds
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: RoleBinding
+# metadata:
+#   labels:
+#     app.kubernetes.io/name: trishankuheaven
+#     app.kubernetes.io/instance: sample-k8s-mcm-crds
+#     app.kubernetes.io/part-of: trishanku-controller
+#     app.kubernetes.io/managed-by: kustomize
+#     app.kubernetes.io/created-by: trishanku-controller
+#   name: sample-k8s-mcm-crds
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: Role
+#   name: sample-k8s-mcm-crds
+# subjects:
+# - kind: ServiceAccount
+#   name: sample-k8s-mcm-crds
 
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  labels:
-    app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: sample-k8s-mcm-crds
-    app.kubernetes.io/part-of: trishanku-controller
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: trishanku-controller
-  name: sample-k8s-mcm-crds
-spec:
-  template:
-    metadata:
-      annotations:
-        from: trishanku
-        app.kubernetes.io/instance: sample-k8s-mcm-crds
-      labels:
-        from: trishanku
-        app.kubernetes.io/instance: sample-k8s-mcm-crds
-    spec:
-      serviceAccountName: sample-k8s-mcm-crds
-      automountServiceAccountToken: true
-      restartPolicy: OnFailure
-      containers:
-      - name: kubectl
-        image: bitnami/kubectl:1.24.4
-        imagePullPolicy: IfNotPresent
-        command:
-        - /trishanku/entrypoint/entrypoint.sh
-        env:
-        - name: TRISHANKU_DEPLOYMENT
-          value: sample-k8s-kcm
-        - name: TRISHANKU_KUBECONFIG
-          value: /trishanku/certs/admin/kubeconfig
-        - name: MCM_VERSION
-          value: v0.49.3
-        volumeMounts:
-        - name: admin
-          mountPath: /trishanku/certs/admin
-        - name: entrypoint
-          mountPath: /trishanku/entrypoint
-      volumes:
-      - name: admin
-        secret:
-          secretName: sample-k8s-admin
-      - name: entrypoint
-        configMap:
-          name: sample-k8s-mcm-crds-entrypoint
-          defaultMode: 0755
+# ---
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   labels:
+#     app.kubernetes.io/name: trishankuheaven
+#     app.kubernetes.io/instance: sample-k8s-mcm-crds
+#     app.kubernetes.io/part-of: trishanku-controller
+#     app.kubernetes.io/managed-by: kustomize
+#     app.kubernetes.io/created-by: trishanku-controller
+#   name: sample-k8s-mcm-crds
+# spec:
+#   template:
+#     metadata:
+#       annotations:
+#         from: trishanku
+#         app.kubernetes.io/instance: sample-k8s-mcm-crds
+#       labels:
+#         from: trishanku
+#         app.kubernetes.io/instance: sample-k8s-mcm-crds
+#     spec:
+#       serviceAccountName: sample-k8s-mcm-crds
+#       automountServiceAccountToken: true
+#       restartPolicy: OnFailure
+#       containers:
+#       - name: kubectl
+#         image: bitnami/kubectl:1.24.4
+#         imagePullPolicy: IfNotPresent
+#         command:
+#         - /trishanku/entrypoint/entrypoint.sh
+#         env:
+#         - name: TRISHANKU_DEPLOYMENT
+#           value: sample-k8s-kcm
+#         - name: TRISHANKU_KUBECONFIG
+#           value: /trishanku/certs/admin/kubeconfig
+#         - name: MCM_VERSION
+#           value: v0.49.3
+#         volumeMounts:
+#         - name: admin
+#           mountPath: /trishanku/certs/admin
+#         - name: entrypoint
+#           mountPath: /trishanku/entrypoint
+#       volumes:
+#       - name: admin
+#         secret:
+#           secretName: sample-k8s-admin
+#       - name: entrypoint
+#         configMap:
+#           name: sample-k8s-mcm-crds-entrypoint
+#           defaultMode: 0755
 
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  labels:
-    app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: sample-k8s-mcm-crds-entrypoint
-    app.kubernetes.io/part-of: trishanku-controller
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: trishanku-controller
-  name: sample-k8s-mcm-crds-entrypoint
-data:
-  entrypoint.sh: |
-    #!/bin/bash
-    set -x
+# ---
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   labels:
+#     app.kubernetes.io/name: trishankuheaven
+#     app.kubernetes.io/instance: sample-k8s-mcm-crds-entrypoint
+#     app.kubernetes.io/part-of: trishanku-controller
+#     app.kubernetes.io/managed-by: kustomize
+#     app.kubernetes.io/created-by: trishanku-controller
+#   name: sample-k8s-mcm-crds-entrypoint
+# data:
+#   entrypoint.sh: |
+#     #!/bin/bash
+#     set -x
 
-    kubectl port-forward deploy/${TRISHANKU_DEPLOYMENT} 6443:6443 &
-    echo "Waiting for port-forwarding to setup..." \
-      && sleep 5 \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} cluster-info \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} apply \
-        -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_machineclasses.yaml \
-        -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_machines.yaml \
-        -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_machinesets.yaml \
-        -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_machinedeployments.yaml \
-        -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_scales.yaml \
-        -f https://raw.githubusercontent.com/gardener/machine-controller-manager/master/kubernetes/deployment/out-of-tree/control-cluster-role.yaml \
-        -f https://raw.githubusercontent.com/gardener/machine-controller-manager/master/kubernetes/deployment/out-of-tree/target-cluster-role.yaml \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get crds | grep machine.sapcloud.io \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get clusterroles | grep machine-controller-manager \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} create clusterrolebinding machine-controller-manager-control \
-        --clusterrole=machine-controller-manager-control --group=system:machine-controller-manager \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} create clusterrolebinding machine-controller-manager-target \
-        --clusterrole=machine-controller-manager-target --group=system:machine-controller-manager \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get clusterrolebindings | grep machine-controller-manager \
+#     kubectl port-forward deploy/${TRISHANKU_DEPLOYMENT} 6443:6443 &
+#     echo "Waiting for port-forwarding to setup..." \
+#       && sleep 5 \
+#       && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} cluster-info \
+#       && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} apply \
+#         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_machineclasses.yaml \
+#         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_machines.yaml \
+#         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_machinesets.yaml \
+#         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_machinedeployments.yaml \
+#         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_scales.yaml \
+#         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/master/kubernetes/deployment/out-of-tree/control-cluster-role.yaml \
+#         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/master/kubernetes/deployment/out-of-tree/target-cluster-role.yaml \
+#       && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get crds | grep machine.sapcloud.io \
+#       && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get clusterroles | grep machine-controller-manager \
+#       && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} create clusterrolebinding machine-controller-manager-control \
+#         --clusterrole=machine-controller-manager-control --group=system:machine-controller-manager \
+#       && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} create clusterrolebinding machine-controller-manager-target \
+#         --clusterrole=machine-controller-manager-target --group=system:machine-controller-manager \
+#       && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get clusterrolebindings | grep machine-controller-manager \
 
----
-apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
-kind: TrishankuHeaven
-metadata:
-  labels:
-    app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: sample-k8s-mcm
-    app.kubernetes.io/part-of: trishanku-controller
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: trishanku-controller
-  name: sample-k8s-mcm
-spec:
-  skip:
-    entrypoints: true
-  certificates:
-    certificateAuthoritySecretName: sample-k8s-cert-ca
-    serviceAccountsSecretName: sample-k8s-cert-service-account
-    kubernetesSecretName: sample-k8s-cert-kubernetes
-    adminSecretName: sample-k8s-admin
-    controller:
-      secretName: sample-k8s-mcm
-      userName: system:machine-controller-manager
-      groupName: system:machine-controller-manager
-  eventsEtcd:
-    local: {}
-  gitcd:
-    credentialsSecretName: git-cred
-    imagePullSecretName: gar-cred
-    remoteRepo: https://github.com/trishanku-org/sample-k8s
-    branches:
-      local:
-        data: mcm/data
-        metadata: mcm/metadata
-      remote:
-        data: upstream/data
-        metadata: upstream/metadata
-    pull:
-      pushAfterMerge: true
-      tickerDuration: 15s
-    pullRequest:
-      conflictResolutions: default=2
-      pushAfterMerge: true
-      tickerDuration: 25s
-  app:
-    replicas: 1
-    entrypointsConfigMapName: sample-k8s-entrypoints
-    podTemplate:
-      metadata:
-        annotations:
-          from: trishanku
-          app.kubernetes.io/instance: sample-k8s-mcm
-        labels:
-          from: trishanku
-          app.kubernetes.io/instance: sample-k8s-mcm
-      spec:
-        automountServiceAccountToken: false
-        containers:
-        - name: mcm
-          image: asia-south1-docker.pkg.dev/trishanku/trishanku/machine-controller-manager:v0.49.3
-          imagePullPolicy: IfNotPresent
-          command:
-          - ./machine-controller-manager
-          - --control-kubeconfig=/trishanku/certs/mcm/kubeconfig
-          - --target-kubeconfig=/trishanku/certs/mcm/kubeconfig
-          - --leader-elect=false
-          - --cloud-provider=gcp
-          - --concurrent-syncs=1
-          - --v=2
-          volumeMounts:
-          - name: ca
-            mountPath: /trishanku/certs/ca
-          - name: mcm
-            mountPath: /trishanku/certs/mcm
-        volumes:
-        - name: ca
-          secret:
-            secretName: sample-k8s-cert-ca
-        - name: mcm
-          secret:
-            secretName: sample-k8s-mcm
+# ---
+# apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+# kind: TrishankuHeaven
+# metadata:
+#   labels:
+#     app.kubernetes.io/name: trishankuheaven
+#     app.kubernetes.io/instance: sample-k8s-mcm
+#     app.kubernetes.io/part-of: trishanku-controller
+#     app.kubernetes.io/managed-by: kustomize
+#     app.kubernetes.io/created-by: trishanku-controller
+#   name: sample-k8s-mcm
+# spec:
+#   skip:
+#     entrypoints: true
+#   certificates:
+#     certificateAuthoritySecretName: sample-k8s-cert-ca
+#     serviceAccountsSecretName: sample-k8s-cert-service-account
+#     kubernetesSecretName: sample-k8s-cert-kubernetes
+#     adminSecretName: sample-k8s-admin
+#     controller:
+#       secretName: sample-k8s-mcm
+#       userName: system:machine-controller-manager
+#       groupName: system:machine-controller-manager
+#   eventsEtcd:
+#     local: {}
+#   gitcd:
+#     credentialsSecretName: git-cred
+#     imagePullSecretName: gar-cred
+#     remoteRepo: https://github.com/trishanku-org/sample-k8s
+#     branches:
+#       local:
+#         data: mcm/data
+#         metadata: mcm/metadata
+#       remote:
+#         data: upstream/data
+#         metadata: upstream/metadata
+#     pull:
+#       pushAfterMerge: true
+#       tickerDuration: 15s
+#     pullRequest:
+#       conflictResolutions: default=2
+#       pushAfterMerge: true
+#       tickerDuration: 25s
+#   app:
+#     replicas: 1
+#     entrypointsConfigMapName: sample-k8s-entrypoints
+#     podTemplate:
+#       metadata:
+#         annotations:
+#           from: trishanku
+#           app.kubernetes.io/instance: sample-k8s-mcm
+#         labels:
+#           from: trishanku
+#           app.kubernetes.io/instance: sample-k8s-mcm
+#       spec:
+#         automountServiceAccountToken: false
+#         containers:
+#         - name: mcm
+#           image: asia-south1-docker.pkg.dev/trishanku/trishanku/machine-controller-manager:v0.49.3
+#           imagePullPolicy: IfNotPresent
+#           command:
+#           - ./machine-controller-manager
+#           - --control-kubeconfig=/trishanku/certs/mcm/kubeconfig
+#           - --target-kubeconfig=/trishanku/certs/mcm/kubeconfig
+#           - --leader-elect=false
+#           - --cloud-provider=gcp
+#           - --concurrent-syncs=1
+#           - --v=2
+#           volumeMounts:
+#           - name: ca
+#             mountPath: /trishanku/certs/ca
+#           - name: mcm
+#             mountPath: /trishanku/certs/mcm
+#         volumes:
+#         - name: ca
+#           secret:
+#             secretName: sample-k8s-cert-ca
+#         - name: mcm
+#           secret:
+#             secretName: sample-k8s-mcm
 
----
-apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
-kind: TrishankuHeaven
-metadata:
-  labels:
-    app.kubernetes.io/name: trishankuheaven
-    app.kubernetes.io/instance: sample-k8s-mc
-    app.kubernetes.io/part-of: trishanku-controller
-    app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: trishanku-controller
-  name: sample-k8s-mc
-spec:
-  skip:
-    entrypoints: true
-  certificates:
-    certificateAuthoritySecretName: sample-k8s-cert-ca
-    serviceAccountsSecretName: sample-k8s-cert-service-account
-    kubernetesSecretName: sample-k8s-cert-kubernetes
-    adminSecretName: sample-k8s-admin
-    controller:
-      secretName: sample-k8s-mc
-      userName: system:machine-controller
-      groupName: system:machine-controller-manager
-  eventsEtcd:
-    local: {}
-  gitcd:
-    credentialsSecretName: git-cred
-    imagePullSecretName: gar-cred
-    remoteRepo: https://github.com/trishanku-org/sample-k8s
-    branches:
-      local:
-        data: mc/data
-        metadata: mc/metadata
-      remote:
-        data: upstream/data
-        metadata: upstream/metadata
-    pull:
-      pushAfterMerge: true
-      tickerDuration: 15s
-    pullRequest:
-      conflictResolutions: default=2
-      pushAfterMerge: true
-      tickerDuration: 25s
-  app:
-    replicas: 1
-    entrypointsConfigMapName: sample-k8s-entrypoints
-    podTemplate:
-      metadata:
-        annotations:
-          from: trishanku
-          app.kubernetes.io/instance: sample-k8s-mc
-        labels:
-          from: trishanku
-          app.kubernetes.io/instance: sample-k8s-mc
-      spec:
-        automountServiceAccountToken: false
-        containers:
-        - name: mc
-          image: asia-south1-docker.pkg.dev/trishanku/trishanku/machine-controller-manager-provider-gcp:v0.16.0
-          imagePullPolicy: IfNotPresent
-          command:
-          - ./machine-controller
-          - --control-kubeconfig=/trishanku/certs/mc/kubeconfig
-          - --target-kubeconfig=/trishanku/certs/mc/kubeconfig
-          - --leader-elect=false
-          - --cloud-provider=gcp
-          - --concurrent-syncs=1
-          - --machine-drain-timeout=6h
-          - --machine-creation-timeout=20m
-          - --machine-health-timeout=3h
-          - --machine-pv-detach-timeout=15m
-          - --machine-pv-reattach-timeout=10m
-          - --machine-safety-apiserver-statuscheck-period=10m
-          - --machine-safety-orphan-vms-period=1h
-          - --v=2
-          volumeMounts:
-          - name: ca
-            mountPath: /trishanku/certs/ca
-          - name: mc
-            mountPath: /trishanku/certs/mc
-        volumes:
-        - name: ca
-          secret:
-            secretName: sample-k8s-cert-ca
-        - name: mc
-          secret:
-            secretName: sample-k8s-mc
+# ---
+# apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+# kind: TrishankuHeaven
+# metadata:
+#   labels:
+#     app.kubernetes.io/name: trishankuheaven
+#     app.kubernetes.io/instance: sample-k8s-mc
+#     app.kubernetes.io/part-of: trishanku-controller
+#     app.kubernetes.io/managed-by: kustomize
+#     app.kubernetes.io/created-by: trishanku-controller
+#   name: sample-k8s-mc
+# spec:
+#   skip:
+#     entrypoints: true
+#   certificates:
+#     certificateAuthoritySecretName: sample-k8s-cert-ca
+#     serviceAccountsSecretName: sample-k8s-cert-service-account
+#     kubernetesSecretName: sample-k8s-cert-kubernetes
+#     adminSecretName: sample-k8s-admin
+#     controller:
+#       secretName: sample-k8s-mc
+#       userName: system:machine-controller
+#       groupName: system:machine-controller-manager
+#   eventsEtcd:
+#     local: {}
+#   gitcd:
+#     credentialsSecretName: git-cred
+#     imagePullSecretName: gar-cred
+#     remoteRepo: https://github.com/trishanku-org/sample-k8s
+#     branches:
+#       local:
+#         data: mc/data
+#         metadata: mc/metadata
+#       remote:
+#         data: upstream/data
+#         metadata: upstream/metadata
+#     pull:
+#       pushAfterMerge: true
+#       tickerDuration: 15s
+#     pullRequest:
+#       conflictResolutions: default=2
+#       pushAfterMerge: true
+#       tickerDuration: 25s
+#   app:
+#     replicas: 1
+#     entrypointsConfigMapName: sample-k8s-entrypoints
+#     podTemplate:
+#       metadata:
+#         annotations:
+#           from: trishanku
+#           app.kubernetes.io/instance: sample-k8s-mc
+#         labels:
+#           from: trishanku
+#           app.kubernetes.io/instance: sample-k8s-mc
+#       spec:
+#         automountServiceAccountToken: false
+#         containers:
+#         - name: mc
+#           image: asia-south1-docker.pkg.dev/trishanku/trishanku/machine-controller-manager-provider-gcp:v0.16.0
+#           imagePullPolicy: IfNotPresent
+#           command:
+#           - ./machine-controller
+#           - --control-kubeconfig=/trishanku/certs/mc/kubeconfig
+#           - --target-kubeconfig=/trishanku/certs/mc/kubeconfig
+#           - --leader-elect=false
+#           - --cloud-provider=gcp
+#           - --concurrent-syncs=1
+#           - --machine-drain-timeout=6h
+#           - --machine-creation-timeout=20m
+#           - --machine-health-timeout=3h
+#           - --machine-pv-detach-timeout=15m
+#           - --machine-pv-reattach-timeout=10m
+#           - --machine-safety-apiserver-statuscheck-period=10m
+#           - --machine-safety-orphan-vms-period=1h
+#           - --v=2
+#           volumeMounts:
+#           - name: ca
+#             mountPath: /trishanku/certs/ca
+#           - name: mc
+#             mountPath: /trishanku/certs/mc
+#         volumes:
+#         - name: ca
+#           secret:
+#             secretName: sample-k8s-cert-ca
+#         - name: mc
+#           secret:
+#             secretName: sample-k8s-mc

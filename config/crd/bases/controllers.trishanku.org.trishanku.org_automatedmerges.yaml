@@ -1,0 +1,198 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
+  name: automatedmerges.controllers.trishanku.org.trishanku.org
+spec:
+  group: controllers.trishanku.org.trishanku.org
+  names:
+    kind: AutomatedMerge
+    listKind: AutomatedMergeList
+    plural: automatedmerges
+    singular: automatedmerge
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AutomatedMerge is the Schema for the automatedmerges API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AutomatedMergeSpec defines the desired state of AutomatedMerge
+            properties:
+              app:
+                description: App specifies the app for which the automated merge is
+                  to be set up.
+                properties:
+                  committerName:
+                    description: CommitterName specifies the user name the gitcd is
+                      to be configured to use.
+                    type: string
+                  entrypointsConfigMapName:
+                    description: EntrypointsConfigMapName specifies the name of the
+                      configmap containing the trishanku entrypoint scripts for the
+                      The confimapg will be generated if not existing. The configmap
+                      name will be generated if not specified.
+                    type: string
+                  replicas:
+                    description: Number of desired pods. This is a pointer to distinguish
+                      between explicit zero and not specified. Defaults to 1.
+                    format: int32
+                    type: integer
+                required:
+                - committerName
+                type: object
+              gitcd:
+                description: Gitcd specifies the Gitcd configuration.
+                properties:
+                  credentialsSecretName:
+                    description: CredentialsSecretName specifies the name of the secret
+                      containing the .git-credentials file.
+                    type: string
+                  git:
+                    description: Git specifies the configuration for Git repo that
+                      will back gitcd.
+                    properties:
+                      branches:
+                        description: Branches specifies the local data and metadata
+                          branches.
+                        properties:
+                          data:
+                            description: Data specifies the data branch.
+                            type: string
+                          metadata:
+                            description: Metadata specifies the data branch.
+                            type: string
+                          noCreateBranch:
+                            description: NoCreateBranch specifies if branches should
+                              not be created if they do not exist.
+                            type: boolean
+                        type: object
+                      remotes:
+                        description: Remotes specifies the details about one or more
+                          remote repos and data/metadata branches for the git repo
+                          that will back gitcd.
+                        items:
+                          description: RemoteSpec specifies the details about one
+                            or more remote repos and data/metadata branches for the
+                            git repo that will back gitcd.
+                          properties:
+                            branches:
+                              description: Branches specifies the data and metadata
+                                branches.
+                              properties:
+                                data:
+                                  description: Data specifies the data branch.
+                                  type: string
+                                metadata:
+                                  description: Metadata specifies the data branch.
+                                  type: string
+                                noCreateBranch:
+                                  description: NoCreateBranch specifies if branches
+                                    should not be created if they do not exist.
+                                  type: boolean
+                              type: object
+                            conflictResolution:
+                              description: ConflictResolution specifies the conflict
+                                resolution policy while merging changes from remote.
+                              type: integer
+                            name:
+                              description: Name specifies the name of the remote repo.
+                                Defaults to origin.
+                              type: string
+                            repo:
+                              description: RemoteRepo specifies the URL or path to
+                                the remote repo for the git repo that will back gitcd.
+                              type: string
+                            retentionPolicies:
+                              description: RetentionPolicies specifies the retention
+                                policies while merging changes from remote.
+                              properties:
+                                exclude:
+                                  description: Exclude specifies the exclude retention
+                                    policies.
+                                  type: string
+                                include:
+                                  description: Include specifies the include retention
+                                    policies.
+                                  type: string
+                              type: object
+                          type: object
+                        type: array
+                    required:
+                    - branches
+                    - remotes
+                    type: object
+                  gitImage:
+                    description: GitImage specifie the git container image.
+                    properties:
+                      image:
+                        description: Image specifies the container image.
+                        type: string
+                      imagePullPolicy:
+                        description: ImagePullPolicy specifies the image pull policy
+                          for the container image.
+                        type: string
+                    type: object
+                  gitcdImage:
+                    description: GitcdImage specifie the gitcd container image.
+                    properties:
+                      image:
+                        description: Image specifies the container image.
+                        type: string
+                      imagePullPolicy:
+                        description: ImagePullPolicy specifies the image pull policy
+                          for the container image.
+                        type: string
+                    type: object
+                  imagePullSecretName:
+                    description: ImagePullSecretName specifies the name of the secret
+                      containing the credentials to pull gitcd image.
+                    type: string
+                  pull:
+                    description: Pull specifies the pull configuration for gitcd.
+                    properties:
+                      pushAfterMerge:
+                        description: PushAfterMerge specifies if the local branch
+                          must be pushed to remote after merging from remote.
+                        type: boolean
+                      pushOnPullFailure:
+                        description: PushOnPullFailure specifies if the local branch
+                          must be pushed to remote even if fetching from remote fails.
+                        type: boolean
+                      tickerDuration:
+                        description: TickerDuration species the ticker duration between
+                          automated pulls from remote.
+                        type: string
+                    required:
+                    - tickerDuration
+                    type: object
+                required:
+                - credentialsSecretName
+                - git
+                - pull
+                type: object
+            type: object
+          status:
+            description: AutomatedMergeStatus defines the observed state of AutomatedMerge
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -696,7 +696,7 @@ func getRemoteName(remote *v1alpha1.RemoteSpec) string {
 
 func getRemoteRepo(remote *v1alpha1.RemoteSpec) string {
 	if remote != nil {
-		return remote.Name
+		return remote.Repo
 	}
 	return ""
 }
@@ -742,6 +742,14 @@ func (r *gitcdReconcilerImpl) appendImagePullSecrets(podSpec *corev1.PodSpec, gi
 	}
 }
 
+func getGitPreInitContainerName(remote *v1alpha1.RemoteSpec) string {
+	if remote != nil && len(remote.Name) > 0 {
+		return CONTAINER_GIT_PRE + "-" + remote.Name
+	}
+
+	return CONTAINER_GIT_PRE
+}
+
 func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, gitcdSpec *v1alpha1.GitcdSpec, committerName string) {
 	var (
 		gitCredsSecretName string
@@ -761,7 +769,7 @@ func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, git
 
 	for _, remote := range remotes {
 		podSpec.InitContainers = append(podSpec.InitContainers, corev1.Container{
-			Name:            CONTAINER_GIT_PRE,
+			Name:            getGitPreInitContainerName(remote),
 			Image:           getImage(gitcdSpec.GitImage, r.getDefaultGitImage()),
 			ImagePullPolicy: getImagePullPolicy(gitcdSpec.GitImage),
 			Command:         []string{path.Join(BASE_PATH_ENTRYPOINTS, ENTRYPOINT_GIT_PRE)},
@@ -840,6 +848,7 @@ func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, git
 			"--advertise-client-urls=default=http://127.0.0.1:2479/",
 			"--watch-dispatch-channel-size=1",
 			"--push-after-merges=default=" + strconv.FormatBool(gitcdSpec.Pull.PushAfterMerge),
+			"--push-on-pull-failures=default=" + strconv.FormatBool(gitcdSpec.Pull.PushOnPullFailure),
 		},
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: VOLUME_HOME, MountPath: BASE_PATH_HOME},

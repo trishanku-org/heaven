@@ -208,6 +208,11 @@ type PullSpec struct {
 	// +default=true
 	PushAfterMerge bool `json:"pushAfterMerge,omitempty"`
 
+	// PushOnPullFailure specifies if the local branch must be pushed to remote even if fetching from remote fails.
+	// +optional
+	// +default=true
+	PushOnPullFailure bool `json:"pushOnPullFailure,omitempty"`
+
 	// TickerDuration species the ticker duration between automated pulls from remote.
 	TickerDuration metav1.Duration `json:"tickerDuration"`
 }

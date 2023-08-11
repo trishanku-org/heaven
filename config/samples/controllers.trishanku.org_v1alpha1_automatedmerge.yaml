@@ -3,10 +3,33 @@ kind: AutomatedMerge
 metadata:
   labels:
     app.kubernetes.io/name: automatedmerge
-    app.kubernetes.io/instance: automatedmerge-sample
+    app.kubernetes.io/instance: sample-k8s-kcm
     app.kubernetes.io/part-of: trishanku-controller
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: trishanku-controller
-  name: automatedmerge-sample
+  name: sample-k8s-kcm
 spec:
-  # TODO(user): Add fields here
+  gitcd:
+    credentialsSecretName: git-cred
+    imagePullSecretName: gar-cred
+    gitcdImage:
+      imagePullPolicy: Always
+    git:
+      branches:
+        data: upstream/data
+        metadata: upstream/metadata
+      remotes:
+      - name: origin
+        repo: https://github.com/trishanku-org/sample-k8s
+        branches:
+          data: kcm/data
+          metadata: kcm/metadata
+          noCreateBranch: true
+    pull:
+      pushAfterMerge: true
+      pushOnPullFailure: true
+      tickerDuration: 15s
+  app:
+    replicas: 1
+    entrypointsConfigMapName: sample-k8s-entrypoints
+    committerName: automerge
