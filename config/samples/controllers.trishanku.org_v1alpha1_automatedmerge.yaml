@@ -19,11 +19,17 @@ spec:
         data: upstream/data
         metadata: upstream/metadata
       remotes:
-      - name: origin
+      - name: kcm
         repo: https://github.com/trishanku-org/sample-k8s
         branches:
           data: kcm/data
           metadata: kcm/metadata
+          failOnNoBranch: true
+      - name: mcm
+        repo: https://github.com/trishanku-org/sample-k8s
+        branches:
+          data: mcm/data
+          metadata: mcm/metadata
           failOnNoBranch: true
     pull:
       pushAfterMerge: true

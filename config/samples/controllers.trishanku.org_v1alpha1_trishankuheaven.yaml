@@ -309,7 +309,7 @@ spec:
         - /trishanku/entrypoint/entrypoint.sh
         env:
         - name: TRISHANKU_DEPLOYMENT
-          value: sample-k8s-kcm
+          value: sample-k8s-kcm-heaven
         - name: TRISHANKU_KUBECONFIG
           value: /trishanku/certs/admin/kubeconfig
         - name: MCM_VERSION

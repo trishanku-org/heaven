@@ -488,6 +488,9 @@ if [ "$GITCD_REMOTE_REPO" == "" ]; then
 	exit 0
 fi
 
+# Add the remote repo if it was not added already.
+git remote show "$GITCD_REMOTE_NAME" > /dev/null 2>&1 || git remote add "$GITCD_REMOTE_NAME" "$GITCD_REMOTE_REPO" || exit 1
+
 # Remote repo.
 git show-branch "$GITCD_REMOTE_BRANCH_DATA" /dev/null 2>&1 || [ "$GITCD_IGNORE_NO_REMOTE_BRANCH" == "true" ] || git fetch || exit 1
 
