@@ -487,24 +487,37 @@ if [ "$GITCD_REMOTE_REPO" == "" ]; then
 	exit 0
 fi
 
-# Add the remote repo if it was not added already.
-git remote show "$GITCD_REMOTE_NAME" > /dev/null 2>&1 || git remote add "$GITCD_REMOTE_NAME" "$GITCD_REMOTE_REPO" || exit 1
 
 # Remote repo.
-git show-branch "$GITCD_REMOTE_BRANCH_DATA" /dev/null 2>&1 || [ "$GITCD_IGNORE_NO_REMOTE_BRANCH" == "true" ] || git fetch || exit 1
 
 git config core.logAllRefUpdates always
-git config --unset-all remote.origin.fetch
-git config --unset-all remote.origin.push
+
+function setup_remote {
+	local REMOTE_NAME="$1"
+	local REMOTE_URL="$2"
+	local BRANCH_DATA="$3"
+	local BRANCH_METADATA="$4"
+	local REMOTE_BRANCH_DATA="$5"
+	local REMOTE_BRANCH_METADATA="$6"
+	
+	git config "remote.${REMOTE_NAME}.url" "$REMOTE_URL"
+	git config --unset-all "remote.${REMOTE_NAME}.fetch"
+	git config --unset-all "remote.${REMOTE_NAME}.push"
+
+	git config --add "remote.${REMOTE_NAME}.fetch" "refs/heads/${REMOTE_BRANCH_DATA}:refs/heads/${REMOTE_BRANCH_DATA}"
+	git config --add "remote.${REMOTE_NAME}.fetch" "refs/heads/${REMOTE_BRANCH_METADATA}:refs/heads/${REMOTE_BRANCH_METADATA}"
+	git config --add "remote.${REMOTE_NAME}.push" "refs/heads/${BRANCH_DATA}:refs/heads/${BRANCH_DATA}"
+	git config --add "remote.${REMOTE_NAME}.push" "refs/heads/${BRANCH_METADATA}:refs/heads/${BRANCH_METADATA}"
+}
+
+setup_remote "$GITCD_REMOTE_NAME" "$GITCD_REMOTE_REPO" "$GITCD_BRANCH_DATA" "$GITCD_BRANCH_METADATA" "$GITCD_REMOTE_BRANCH_DATA" "$GITCD_REMOTE_BRANCH_METADATA"
+
+git fetch "$GITCD_REMOTE_NAME" || [ "$GITCD_IGNORE_NO_REMOTE_BRANCH" == "true" ] || exit 1
 
 function prepare_branch {
 	local BRANCH="$1"
 	local REMOTE_BRANCH="$2"
-	local REMOTE_NAME="$3"
 	
-	git config --add "remote.${REMOTE_NAME}.fetch" "refs/heads/${REMOTE_BRANCH}:refs/heads/${REMOTE_BRANCH}"
-	git config --add remote.${REMOTE_NAME}.push "refs/heads/${BRANCH}:refs/heads/${BRANCH}"
- 
 	if  git show-branch "$BRANCH" > /dev/null 2>&1; then
 	  echo "Branch ${BRANCH} already exists."
 	elif [ "$GITCD_CREATE_LOCAL_BRANCH" == "true" ]; then
@@ -523,8 +536,8 @@ function prepare_branch {
 	fi
 }
 
-prepare_branch "$GITCD_BRANCH_DATA" "$GITCD_REMOTE_BRANCH_DATA" "$GITCD_REMOTE_NAME"
-prepare_branch "$GITCD_BRANCH_METADATA" "$GITCD_REMOTE_BRANCH_METADATA" "$GITCD_REMOTE_NAME"
+prepare_branch "$GITCD_BRANCH_DATA" "$GITCD_REMOTE_BRANCH_DATA"
+prepare_branch "$GITCD_BRANCH_METADATA" "$GITCD_REMOTE_BRANCH_METADATA"
 
 init_data_branch "$GITCD_BRANCH_DATA"
 `

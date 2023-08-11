@@ -30,7 +30,7 @@ spec:
         branches:
           data: mcm/data
           metadata: mcm/metadata
-          failOnNoBranch: true
+          failOnNoBranch: false
     pull:
       pushAfterMerge: true
       pushOnPullFailure: true
