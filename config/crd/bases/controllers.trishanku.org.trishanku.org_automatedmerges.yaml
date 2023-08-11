@@ -75,13 +75,13 @@ spec:
                           data:
                             description: Data specifies the data branch.
                             type: string
+                          failOnNoBranch:
+                            description: FailOnNoBranch specifies if the heaven setup
+                              should fail if the branch does not exist already.
+                            type: boolean
                           metadata:
                             description: Metadata specifies the data branch.
                             type: string
-                          noCreateBranch:
-                            description: NoCreateBranch specifies if branches should
-                              not be created if they do not exist.
-                            type: boolean
                         type: object
                       remotes:
                         description: Remotes specifies the details about one or more
@@ -99,13 +99,14 @@ spec:
                                 data:
                                   description: Data specifies the data branch.
                                   type: string
+                                failOnNoBranch:
+                                  description: FailOnNoBranch specifies if the heaven
+                                    setup should fail if the branch does not exist
+                                    already.
+                                  type: boolean
                                 metadata:
                                   description: Metadata specifies the data branch.
                                   type: string
-                                noCreateBranch:
-                                  description: NoCreateBranch specifies if branches
-                                    should not be created if they do not exist.
-                                  type: boolean
                               type: object
                             conflictResolution:
                               description: ConflictResolution specifies the conflict

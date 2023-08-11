@@ -196,9 +196,9 @@ type BranchSpec struct {
 	// Metadata specifies the data branch.
 	Metadata string `json:"metadata,omitempty"`
 
-	// NoCreateBranch specifies if branches should not be created if they do not exist.
+	// FailOnNoBranch specifies if the heaven setup should fail if the branch does not exist already.
 	// +optional
-	NoCreateBranch bool `json:"noCreateBranch,omitempty"`
+	FailOnNoBranch bool `json:"failOnNoBranch,omitempty"`
 }
 
 // PullSpec specifies the pull configuration for Gitcd.

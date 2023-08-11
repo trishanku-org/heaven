@@ -24,7 +24,7 @@ spec:
         branches:
           data: kcm/data
           metadata: kcm/metadata
-          noCreateBranch: true
+          failOnNoBranch: true
     pull:
       pushAfterMerge: true
       pushOnPullFailure: true

@@ -489,7 +489,7 @@ if [ "$GITCD_REMOTE_REPO" == "" ]; then
 fi
 
 # Remote repo.
-git show-branch "$GITCD_REMOTE_BRANCH_DATA" /dev/null 2>&1 || [ "$GITCD_CREATE_REMOTE_BRANCH" == "true" ] || git fetch || exit 1
+git show-branch "$GITCD_REMOTE_BRANCH_DATA" /dev/null 2>&1 || [ "$GITCD_IGNORE_NO_REMOTE_BRANCH" == "true" ] || git fetch || exit 1
 
 git config core.logAllRefUpdates always
 git config --unset-all remote.origin.fetch
@@ -508,7 +508,7 @@ function prepare_branch {
 		if git show-branch "$REMOTE_BRANCH" > /dev/null 2>&1; then
 			echo "Creating branch ${BRANCH} from ${REMOTE_BRANCH}."
 			git branch "${BRANCH}" "${REMOTE_BRANCH}" --no-track
-		elif [ "$GITCD_CREATE_REMOTE_BRANCH" == "true" ]; then
+		elif [ "$GITCD_IGNORE_NO_REMOTE_BRANCH" == "true" ]; then
 			echo "Remote branch ${REMOTE_BRANCH} does not exist. Creating a fresh branch ${BRANCH}."
 		else
 			echo "Exiting because ${REMOTE_BRANCH} does not exist."
@@ -798,12 +798,12 @@ func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, git
 				{Name: "GITCD_COMMITTER_NAME", Value: committerName},
 				{Name: "GITCD_BRANCH_DATA", Value: gitcdSpec.Git.Branches.Data},
 				{Name: "GITCD_BRANCH_METADATA", Value: gitcdSpec.Git.Branches.Metadata},
-				getCreateBranchEnvVar("GITCD_CREATE_LOCAL_BRANCH", !gitcdSpec.Git.Branches.NoCreateBranch),
+				getCreateBranchEnvVar("GITCD_CREATE_LOCAL_BRANCH", !gitcdSpec.Git.Branches.FailOnNoBranch),
 				{Name: "GITCD_REMOTE_NAME", Value: getRemoteName(remote)},
 				{Name: "GITCD_REMOTE_REPO", Value: getRemoteRepo(remote)},
 				{Name: "GITCD_REMOTE_BRANCH_DATA", Value: getRemoteBranchData(remote)},
 				{Name: "GITCD_REMOTE_BRANCH_METADATA", Value: getRemoteBranchMetadata(remote)},
-				getCreateBranchEnvVar("GITCD_CREATE_REMOTE_BRANCH", remote != nil && !remote.Branches.NoCreateBranch),
+				getCreateBranchEnvVar("GITCD_IGNORE_NO_REMOTE_BRANCH", remote != nil && !remote.Branches.FailOnNoBranch),
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: CONFIG_ENTRYPOINTS, MountPath: BASE_PATH_ENTRYPOINTS, ReadOnly: true},
