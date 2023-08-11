@@ -500,9 +500,10 @@ git config --unset-all remote.origin.push
 function prepare_branch {
 	local BRANCH="$1"
 	local REMOTE_BRANCH="$2"
+	local REMOTE_NAME="$3"
 	
-	git config --add remote.origin.fetch "refs/heads/${REMOTE_BRANCH}:refs/heads/${REMOTE_BRANCH}"
-	git config --add remote.origin.push "refs/heads/${BRANCH}:refs/heads/${BRANCH}"
+	git config --add "remote.${REMOTE_NAME}.fetch" "refs/heads/${REMOTE_BRANCH}:refs/heads/${REMOTE_BRANCH}"
+	git config --add remote.${REMOTE_NAME}.push "refs/heads/${BRANCH}:refs/heads/${BRANCH}"
  
 	if  git show-branch "$BRANCH" > /dev/null 2>&1; then
 	  echo "Branch ${BRANCH} already exists."
@@ -522,8 +523,8 @@ function prepare_branch {
 	fi
 }
 
-prepare_branch "$GITCD_BRANCH_DATA" "$GITCD_REMOTE_BRANCH_DATA"
-prepare_branch "$GITCD_BRANCH_METADATA" "$GITCD_REMOTE_BRANCH_METADATA"
+prepare_branch "$GITCD_BRANCH_DATA" "$GITCD_REMOTE_BRANCH_DATA" "$GITCD_REMOTE_NAME"
+prepare_branch "$GITCD_BRANCH_METADATA" "$GITCD_REMOTE_BRANCH_METADATA" "$GITCD_REMOTE_NAME"
 
 init_data_branch "$GITCD_BRANCH_DATA"
 `
