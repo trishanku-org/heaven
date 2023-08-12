@@ -22,12 +22,14 @@ A set of Kubernetes controllers to configure/provision `trishankuheavens` for Ku
   - [Gitcd](#gitcd)
   - [TrishankuHeaven](#trishankuheaven)
     - [Coordination using an upstream Git repository](#coordination-using-an-upstream-git-repository)
-    - [Headless Kubernetes Cluster](#headless-kubernetes-cluster)
       - [Note](#note)
-    - [Two Headless Clusters](#two-headless-clusters)
+    - [Headless Kubernetes Cluster](#headless-kubernetes-cluster)
       - [Note](#note-1)
+    - [Two Headless Clusters](#two-headless-clusters)
+      - [Note](#note-2)
 - [Next](#next)
 - [What Else](#what-else)
+
 
 ## Why
 
@@ -158,7 +160,7 @@ for existing Kubernetes controllers with full binary-compatibility declaratively
 The host for the `pod` could be any Kubernetes cluster that the required
 network connectivity that the target controller (and possibly the Git-based coordination) requires.
 
-The [`TrishankuHeaven`](https://github.com/trishanku-org/heaven/blob/main/api/v1alpha1/trishankuheaven_types.go) is a Kubernetes [custom resource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/),
+The [`TrishankuHeaven`](api/v1alpha1/trishankuheaven_types.go) is a Kubernetes [custom resource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/),
 which captures, in its specification section,
 the `PodTemplate` for the Kubernetes controller along with the required Git configuration to be used for co-ordination.
 The `TrishankuHeaven` [controller](https://github.com/trishanku-org/heaven/blob/main/controllers/trishankuheaven_controller.go)
@@ -200,6 +202,14 @@ An additional container `gitcd-pr` is also used to continually fetch and merge c
 The `gitcd` container already fetches and merge the changes continually from the `main` data and metadata branches into the `controller` data and metadata branches and push to the upstream Git repository.
 This completes the circle of coordination.
 The `gitcd` and `gitcd-pr` controllers use their own clones of the upstream Git repository to avoid the synchronisation burden between them which would be required if they shared the same Git repository.
+
+##### Note
+
+The additional container `gitcd-pr` used to automate the merging of changes from the controller into the upstream repository has now been replaced with
+the [`AutomatedMerge`](api/v1alpha1/automatedmerge_types.go) resource which generates a separate `Deployment` for this purpose.
+This redesign was to help co-ordinate changes flowing into any upstream branch which might become a bottleneck.
+It also provides maximal flexibility in designing the change-flow between the controllers
+(from a central upstream branch to completely decentralised branches pulling changes from each other).
 
 #### Headless Kubernetes Cluster
 
@@ -257,10 +267,12 @@ The high level steps for this can be as below.
 
 ##### Note
 
-- In these depictions, the headless controllers are shown simplistically communicating with the upstream Git repositories (instead of a central apiserver) omitting the details of the sidecar containers that make such communication happen.
-- As mentioned [above](#note), this setup leaves out control-loop automation of provisioning headless nodes for either of the headless clusters.
+- In these depictions, the headless controllers are shown simplistically communicating with the upstream Git repositories (instead of a central apiserver) omitting the details of the sidecar containers or [separate `deployments`](#note) that make such communication happen.
+- As mentioned [above](#note-1), this setup leaves out control-loop automation of provisioning headless nodes for either of the headless clusters.
 So, this setup is not self-healing if either of the headless nodes are lost.
 This can be remedied by setting up something like [gardener/machine-controller-manager](https://github.com/gardener/machine-controller-manager)
+  - The [sample setup](config/samples) shows how the gardener/machine-controller-manager can be setup in such a headless Kubernetes cluster.
+  More work is needed to configure the `TrishankuHeaven` for the `kubelet` running in the provisioned machines so that it can join the headless cluster as a `node`.
 as a headless control-plane component to provision and manage the headless nodes.
 - This setup also ignores the complications involved in transitioning the control-plane of the `blue` headless cluster from the `bootstrap` cluster to the `green` headless cluster.
 Such a transition is eased considerably by the fact that merely pointing the `blue` headless cluster's control-plane to the same upstream Git repo solves the data migration problem.
@@ -269,7 +281,7 @@ Leader-election or other such mechanisms would be required to aviod/mitigate two
 ## Next
 
 This project is a proof of concept.
-A lot more work is required make it efficient and productive.
+A lot more work is required to make it efficient and productive.
 There are different possible applications for such an approach of
 loosely co-ordinating independent controllers.
 Please reach out at [@AmshumanKR](https://twitter.com/AmshumanKR) (Twitter) or here in the GitHub [issues](https://github.com/trishanku-org/heaven/issues) if interested in collaborating.
@@ -277,8 +289,9 @@ Please reach out at [@AmshumanKR](https://twitter.com/AmshumanKR) (Twitter) or h
 ## What Else
 
 Git was picked for this project because it enables unlimited forking and multi-way merging with unconstrained conflict resolution.
-But the inefficiency of using Git as a database is obvious.
-Some of it is mitigated by the fact that each fork of the Git repo serves only a single controller and the eventually consistent coordination
+But the inefficiency of using Git as a database is obvious
+(though seeing the history of change made by the individual controller can be quite interesting in itself and might even have some diagnostic value).
+Some of the inefficiency is mitigated by the fact that each fork of the Git repo serves only a single controller and the eventually consistent coordination
 naturally lends itself to subdividing the problem space (and hence, the data space) to any suitable granularity.
 
 However, the real inefficiency lies in Gitcd using a file/folder structure as a key-value store
@@ -290,4 +303,3 @@ Some candidates are as follows.
 - [Dolt](https://github.com/dolthub/dolt)
 - [Irmin](https://github.com/mirage/irmin)
 - [TerminusDB](https://github.com/terminusdb/terminusdb)
-
