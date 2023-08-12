@@ -270,8 +270,8 @@ The high level steps for this can be as below.
 - In these depictions, the headless controllers are shown simplistically communicating with the upstream Git repositories (instead of a central apiserver) omitting the details of the sidecar containers or [separate `deployments`](#note) that make such communication happen.
 - As mentioned [above](#note-1), this setup leaves out control-loop automation of provisioning headless nodes for either of the headless clusters.
 So, this setup is not self-healing if either of the headless nodes are lost.
-This can be remedied by setting up something like [gardener/machine-controller-manager](https://github.com/gardener/machine-controller-manager)
-  - The [sample setup](config/samples) shows how the gardener/machine-controller-manager can be setup in such a headless Kubernetes cluster.
+This can be remedied by setting up something like [`gardener/machine-controller-manager`](https://github.com/gardener/machine-controller-manager).
+  - The [sample setup](config/samples) shows how the `gardener/machine-controller-manager` can be setup in such a headless Kubernetes cluster.
   More work is needed to configure the `TrishankuHeaven` for the `kubelet` running in the provisioned machines so that it can join the headless cluster as a `node`.
 as a headless control-plane component to provision and manage the headless nodes.
 - This setup also ignores the complications involved in transitioning the control-plane of the `blue` headless cluster from the `bootstrap` cluster to the `green` headless cluster.
@@ -281,7 +281,11 @@ Leader-election or other such mechanisms would be required to aviod/mitigate two
 ## Next
 
 This project is a proof of concept.
-A lot more work is required to make it efficient and productive.
+As [noted above](#note-2), the sample setup sets up a headless Kubernetes cluster with the `kube-controller-manager`, the `kube-scheduler` and the controllers of the
+`gardener/machine-controller-manager` to run independently while co-ordinating with one another only by communicating changes via Git.
+Work is pending to configure a `TrishankuHeaven` for the `kubelet` inside the machines provisioned by the `gardener/machine-controller-manager` to help it join and participate in the headless cluster as a `node`.
+Also, a lot more work is required to make it efficient and productive.
+
 There are different possible applications for such an approach of
 loosely co-ordinating independent controllers.
 Please reach out at [@AmshumanKR](https://twitter.com/AmshumanKR) (Twitter) or here in the GitHub [issues](https://github.com/trishanku-org/heaven/issues) if interested in collaborating.
