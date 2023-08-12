@@ -51,7 +51,7 @@ type gitcdReconciler interface {
 	newDeployment(metav1.Object, *int32, *v1alpha1.PodTemplateSpec, configNames, string) *appsv1.Deployment
 	appendVolumesForGitcd(*corev1.PodSpec, configNames)
 	appendImagePullSecrets(*corev1.PodSpec, *v1alpha1.GitcdSpec)
-	appendGitcdContainers(*corev1.PodSpec, *v1alpha1.GitcdSpec, string)
+	appendGitcdContainers(*corev1.PodSpec, *v1alpha1.GitcdSpec, string, string)
 }
 
 // gitcdReconcilerImpl implements gitcdReconciler.
@@ -197,6 +197,12 @@ const (
 	TRISHANKU_OU           = "Heaven"
 	TRISHANKU_CONTEXT_NAME = "default"
 	TRISHANKU_CLUSTER_NAME = "trishanku"
+
+	GITCD_SUBCOMMAND_SERVE = "serve"
+	GITCD_SUBCOMMAND_PULL  = "pull"
+
+	DEFAULT_RETENSION_POLICY_INCLUDE = ".*"
+	DEFAULT_RETENSION_POLICY_EXCLUDE = "^$"
 )
 
 type configNames map[string]string
@@ -652,11 +658,19 @@ func getRemoteMetadataReferenceNames(remotes []v1alpha1.RemoteSpec) string {
 	return strings.Join(ss, ":")
 }
 
+func withDefaultString(s, def string) string {
+	if len(s) > 0 {
+		return s
+	}
+
+	return def
+}
+
 func getMergeRetentionPoliciesInclude(remotes []v1alpha1.RemoteSpec) string {
 	var ss []string
 
 	for _, r := range remotes {
-		ss = append(ss, r.RetentionPolicies.Include)
+		ss = append(ss, withDefaultString(r.RetentionPolicies.Include, DEFAULT_RETENSION_POLICY_INCLUDE))
 	}
 
 	return strings.Join(ss, ":")
@@ -666,7 +680,7 @@ func getMergeRetentionPoliciesExclude(remotes []v1alpha1.RemoteSpec) string {
 	var ss []string
 
 	for _, r := range remotes {
-		ss = append(ss, r.RetentionPolicies.Exclude)
+		ss = append(ss, withDefaultString(r.RetentionPolicies.Exclude, DEFAULT_RETENSION_POLICY_EXCLUDE))
 	}
 
 	return strings.Join(ss, ":")
@@ -762,7 +776,7 @@ func getGitPreInitContainerName(remote *v1alpha1.RemoteSpec) string {
 	return CONTAINER_GIT_PRE
 }
 
-func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, gitcdSpec *v1alpha1.GitcdSpec, committerName string) {
+func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, gitcdSpec *v1alpha1.GitcdSpec, gitcdSubcommand, committerName string) {
 	var (
 		gitCredsSecretName string
 		remotes            []*v1alpha1.RemoteSpec
@@ -845,20 +859,16 @@ func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, git
 		ImagePullPolicy: getImagePullPolicy(gitcdSpec.GitcdImage),
 		Command: []string{
 			"/gitcd",
-			"serve",
+			gitcdSubcommand,
 			"--repo=/root/repo",
 			"--committer-name=" + committerName,
 			"--data-reference-names=default=refs/heads/" + gitcdSpec.Git.Branches.Data,
 			"--metadata-reference-names=default=refs/heads/" + gitcdSpec.Git.Branches.Metadata,
-			"--key-prefixes=default=/registry",
 			"--pull-ticker-duration=" + gitcdSpec.Pull.TickerDuration.Duration.String(),
 			"--remote-names=default=" + getRemoteNames(gitcdSpec.Git.Remotes),
 			"--no-fast-forwards=default=false",
 			"--remote-data-reference-names=default=" + getRemoteDataReferenceNames(gitcdSpec.Git.Remotes),
 			"--remote-meta-reference-names=default=" + getRemoteMetadataReferenceNames(gitcdSpec.Git.Remotes),
-			"--listen-urls=default=http://0.0.0.0:2479/",
-			"--advertise-client-urls=default=http://127.0.0.1:2479/",
-			"--watch-dispatch-channel-size=1",
 			"--push-after-merges=default=" + strconv.FormatBool(gitcdSpec.Pull.PushAfterMerge),
 			"--push-on-pull-failures=default=" + strconv.FormatBool(gitcdSpec.Pull.PushOnPullFailure),
 		},
@@ -875,6 +885,15 @@ func (r *gitcdReconcilerImpl) appendGitcdContainers(podSpec *corev1.PodSpec, git
 			"--merge-conflict-resolutions":       "default=" + getMergeConflictResolutions(gitcdSpec.Git.Remotes),
 		},
 	)
+
+	if gitcdSubcommand == GITCD_SUBCOMMAND_SERVE {
+		gitcd.Args = append(gitcd.Args, []string{
+			"--key-prefixes=default=/registry",
+			"--listen-urls=default=http://0.0.0.0:2479/",
+			"--advertise-client-urls=default=http://127.0.0.1:2479/",
+			"--watch-dispatch-channel-size=1",
+		}...)
+	}
 
 	podSpec.Containers = append(podSpec.Containers, gitcd)
 }
@@ -914,7 +933,7 @@ func (r *TrishankuHeavenReconciler) generateDeploymentFor(ctx context.Context, h
 
 	r.appendImagePullSecrets(podSpec, heaven.Spec.Gitcd)
 
-	r.appendGitcdContainers(podSpec, heaven.Spec.Gitcd, getCommitterName(heaven))
+	r.appendGitcdContainers(podSpec, heaven.Spec.Gitcd, GITCD_SUBCOMMAND_SERVE, getCommitterName(heaven))
 
 	apiserver = corev1.Container{
 		Name:            CONTAINER_APISERVER,

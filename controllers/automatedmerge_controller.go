@@ -156,7 +156,7 @@ func (r *AutomatedMergeReconciler) generateDeploymentFor(ctx context.Context, am
 
 	r.appendImagePullSecrets(podSpec, &am.Spec.Gitcd)
 
-	r.appendGitcdContainers(podSpec, &am.Spec.Gitcd, am.Spec.App.CommitterName)
+	r.appendGitcdContainers(podSpec, &am.Spec.Gitcd, GITCD_SUBCOMMAND_PULL, am.Spec.App.CommitterName)
 
 	return
 }

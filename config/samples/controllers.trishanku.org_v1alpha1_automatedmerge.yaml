@@ -31,6 +31,12 @@ spec:
           data: mcm/data
           metadata: mcm/metadata
           failOnNoBranch: false
+      - name: mc
+        repo: https://github.com/trishanku-org/sample-k8s
+        branches:
+          data: mc/data
+          metadata: mc/metadata
+          failOnNoBranch: false
     pull:
       pushAfterMerge: true
       pushOnPullFailure: true
