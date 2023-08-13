@@ -1,6 +1,6 @@
 # Trishanku - Fork the Heavens
 
-Headless Kubernetes meets truly native [GitOps](https://www.gitops.tech)!
+Headless Kubernetes meets truly native [GitOps](https://www.gitops.tech).
 A set of Kubernetes controllers to configure/provision Kubernetes controllers to be as loosely coupled as human operators,
 with eventual consistency in every sense of the term.
 
