@@ -37,6 +37,12 @@ spec:
           data: mc/data
           metadata: mc/metadata
           failOnNoBranch: false
+      - name: scheduler
+        repo: https://github.com/trishanku-org/sample-k8s
+        branches:
+          data: scheduler/data
+          metadata: scheduler/metadata
+          failOnNoBranch: false
     pull:
       pushAfterMerge: true
       pushOnPullFailure: true

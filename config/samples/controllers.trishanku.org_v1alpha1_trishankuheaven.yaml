@@ -118,100 +118,101 @@ spec:
           secret:
             secretName: sample-k8s-kcm
 
-# ---
-# apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
-# kind: TrishankuHeaven
-# metadata:
-#   labels:
-#     app.kubernetes.io/name: trishankuheaven
-#     app.kubernetes.io/instance: sample-k8s-kube-scheduler
-#     app.kubernetes.io/part-of: trishanku-controller
-#     app.kubernetes.io/managed-by: kustomize
-#     app.kubernetes.io/created-by: trishanku-controller
-#   name: sample-k8s-kube-scheduler
-# spec:
-#   skip:
-#     entrypoints: true
-#   certificates:
-#     certificateAuthoritySecretName: sample-k8s-cert-ca
-#     serviceAccountsSecretName: sample-k8s-cert-service-account
-#     kubernetesSecretName: sample-k8s-cert-kubernetes
-#     adminSecretName: sample-k8s-admin
-#     controller:
-#       secretName: sample-k8s-kube-scheduler
-#       userName: system:kube-scheduler
-#       groupName: system:kube-scheduler
-#   eventsEtcd:
-#     local: {}
-#   gitcd:
-#     credentialsSecretName: git-cred
-#     imagePullSecretName: gar-cred
-#     remoteRepo: https://github.com/trishanku-org/sample-k8s
-#     branches:
-#       local:
-#         data: scheduler/data
-#         metadata: scheduler/metadata
-#       remote:
-#         data: upstream/data
-#         metadata: upstream/metadata
-#         noCreateBranch: true
-#     pull:
-#       pushAfterMerge: true
-#       tickerDuration: 15s
-#     pullRequest:
-#       conflictResolutions: default=2
-#       pushAfterMerge: true
-#       tickerDuration: 25s
-#   app:
-#     replicas: 1
-#     entrypointsConfigMapName: sample-k8s-entrypoints
-#     kubeconfigMountPath: /trishanku/kubeconfig
-#     podTemplate:
-#       metadata:
-#         annotations:
-#           from: trishanku
-#           app.kubernetes.io/instance: sample-k8s-kube-scheduler
-#         labels:
-#           from: trishanku
-#           app.kubernetes.io/instance: sample-k8s-kube-scheduler
-#       spec:
-#         automountServiceAccountToken: false
-#         containers:
-#         - name: kube-scheduler
-#           image: registry.k8s.io/kube-scheduler:v1.24.4
-#           imagePullPolicy: IfNotPresent
-#           command:
-#           - kube-scheduler
-#           - --config=/configs/kube-scheduler-config.yaml
-#           - --v=4
-#           volumeMounts:
-#           - name: configs
-#             mountPath: /configs
-#         volumes:
-#         - name: configs
-#           configMap:
-#             name: sample-k8s-kube-scheduler
+---
+apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+kind: TrishankuHeaven
+metadata:
+  labels:
+    app.kubernetes.io/name: trishankuheaven
+    app.kubernetes.io/instance: sample-k8s-kube-scheduler
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trishanku-controller
+  name: sample-k8s-kube-scheduler
+spec:
+  skip:
+    entrypoints: true
+  certificates:
+    certificateAuthoritySecretName: sample-k8s-cert-ca
+    serviceAccountsSecretName: sample-k8s-cert-service-account
+    kubernetesSecretName: sample-k8s-cert-kubernetes
+    adminSecretName: sample-k8s-admin
+    controller:
+      secretName: sample-k8s-kube-scheduler
+      userName: system:kube-scheduler
+      groupName: system:kube-scheduler
+  eventsEtcd:
+    local: {}
+  gitcd:
+    credentialsSecretName: git-cred
+    imagePullSecretName: gar-cred
+    gitcdImage:
+      imagePullPolicy: Always
+    git:
+      branches:
+        data: scheduler/data
+        metadata: scheduler/metadata
+      remotes:
+      - name: origin
+        repo: https://github.com/trishanku-org/sample-k8s
+        branches:
+          data: upstream/data
+          metadata: upstream/metadata
+          failOnNoBranch: true
+    pull:
+      pushAfterMerge: true
+      pushOnPullFailure: true
+      tickerDuration: 15s
+  app:
+    replicas: 1
+    entrypointsConfigMapName: sample-k8s-entrypoints
+    kubeconfigMountPath: /trishanku/kubeconfig
+    podTemplate:
+      metadata:
+        annotations:
+          from: trishanku
+          app.kubernetes.io/instance: sample-k8s-kube-scheduler
+        labels:
+          from: trishanku
+          app.kubernetes.io/instance: sample-k8s-kube-scheduler
+      spec:
+        automountServiceAccountToken: false
+        containers:
+        - name: kube-scheduler
+          image: registry.k8s.io/kube-scheduler:v1.24.4
+          imagePullPolicy: IfNotPresent
+          command:
+          - kube-scheduler
+          - --config=/configs/kube-scheduler-config.yaml
+          - --v=4
+          volumeMounts:
+          - name: configs
+            mountPath: /configs
+        volumes:
+        - name: configs
+          configMap:
+            name: sample-k8s-kube-scheduler
 
-# ---
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   labels:
-#     app.kubernetes.io/name: trishankuheaven
-#     app.kubernetes.io/instance: sample-k8s-kube-scheduler
-#     app.kubernetes.io/part-of: trishanku-controller
-#     app.kubernetes.io/managed-by: kustomize
-#     app.kubernetes.io/created-by: trishanku-controller
-#   name: sample-k8s-kube-scheduler
-# data:
-#   kube-scheduler-config.yaml: |
-#     apiVersion: kubescheduler.config.k8s.io/v1beta3
-#     kind: KubeSchedulerConfiguration
-#     clientConnection:
-#       kubeconfig: /trishanku/kubeconfig
-#     leaderElection:
-#       leaderElect: false
-#     parallelism: 1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: trishankuheaven
+    app.kubernetes.io/instance: sample-k8s-kube-scheduler
+    app.kubernetes.io/part-of: trishanku-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: trishanku-controller
+  name: sample-k8s-kube-scheduler
+data:
+  kube-scheduler-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1beta3
+    kind: KubeSchedulerConfiguration
+    clientConnection:
+      kubeconfig: /trishanku/kubeconfig
+    leaderElection:
+      leaderElect: false
+    parallelism: 1
 
 ---
 apiVersion: v1
@@ -257,6 +258,12 @@ rules:
   - pods/portforward
   verbs:
   - create
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -356,13 +363,104 @@ data:
         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/${MCM_VERSION}/kubernetes/crds/machine.sapcloud.io_scales.yaml \
         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/master/kubernetes/deployment/out-of-tree/control-cluster-role.yaml \
         -f https://raw.githubusercontent.com/gardener/machine-controller-manager/master/kubernetes/deployment/out-of-tree/target-cluster-role.yaml \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get crds | grep machine.sapcloud.io \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get clusterroles | grep machine-controller-manager \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} create clusterrolebinding machine-controller-manager-control \
-        --clusterrole=machine-controller-manager-control --group=system:machine-controller-manager \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} create clusterrolebinding machine-controller-manager-target \
-        --clusterrole=machine-controller-manager-target --group=system:machine-controller-manager \
-      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} get clusterrolebindings | grep machine-controller-manager \
+      && kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} apply -f - <<EOF
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: machine-controller-manager-control
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: machine-controller-manager-control
+    subjects:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: Group
+      name: system:machine-controller-manager
+    EOF
+
+    kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} apply -f - <<EOF
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: machine-controller-manager-target
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: machine-controller-manager-target
+    subjects:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: Group
+      name: system:machine-controller-manager
+    EOF
+
+    kubectl get secret gcp-cred -oyaml | grep -v creationTimestamp | grep -v resourceVersion | grep -v uid - \
+      | kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} apply -f -
+
+    kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} apply -f - <<EOF
+    ---
+    apiVersion: machine.sapcloud.io/v1alpha1
+    kind: MachineClass
+    metadata:
+      name: test-mc
+      namespace: default
+    provider: GCP
+    providerSpec:
+      canIpForward: true
+      deletionProtection: false
+      description: Machine of shoot ash created by Machine-Controller-Manager.
+      disks:
+      - autoDelete: true
+        boot: true
+        sizeGb: 20
+        type: pd-standard
+        image: projects/debian-cloud/global/images/debian-11-bullseye-v20230809
+        labels:
+          name: test-mc
+      labels:
+      name: test-mc
+      machineType: n1-standard-1
+      metadata:
+      - key: ark
+        value: my-value
+      networkInterfaces:
+      - network: default
+        subnetwork: default
+      scheduling:
+        automaticRestart: true
+        onHostMaintenance: MIGRATE
+        preemptible: false
+      secretRef:
+        name: gcp-cred
+        namespace: default
+      serviceAccounts:
+      - email: 690389152695-compute@developer.gserviceaccount.com
+        scopes:
+        - https://www.googleapis.com/auth/compute
+      tags:
+      - kubernetes-io-cluster-test-mc
+      - kubernetes-io-role-mcm
+      - test-mc
+      region: asia-south1
+      zone: asia-south1-a
+    secretRef:
+      name: gcp-cred
+      namespace: default
+    EOF
+
+    kubectl --kubeconfig ${TRISHANKU_KUBECONFIG} apply -f - <<EOF
+    ---
+    apiVersion: machine.sapcloud.io/v1alpha1
+    kind: Machine
+    metadata:
+      name: test-machine
+      namespace: default
+    spec:
+      class:
+        kind: MachineClass
+        name: test-mc
+    EOF
 
 ---
 apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
