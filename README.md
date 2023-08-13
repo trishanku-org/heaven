@@ -27,9 +27,24 @@ A set of Kubernetes controllers to configure/provision `trishankuheavens` for Ku
       - [Note](#note-1)
     - [Two Headless Clusters](#two-headless-clusters)
       - [Note](#note-2)
+- [Take It For A Spin](#take-it-for-a-spin)
+  - [Pre-requisites](#pre-requisites)
+  - [Prepare secrets](#prepare-secrets)
+    - [git-cred](#git-cred)
+    - [gcp-cred](#gcp-cred)
+    - [gar-cred](#gar-cred)
+  - [Customise](#customise)
+    - [Warning](#warning)
+  - [Create A Sample Headless Cluster](#create-a-sample-headless-cluster)
+    - [Run The Trishanku Heaven Controller](#run-the-trishanku-heaven-controller)
+    - [Apply The Sample Headless Cluster Configuration](#apply-the-sample-headless-cluster-configuration)
+    - [Wait Until All The Pods Are Running Or Completed](#wait-until-all-the-pods-are-running-or-completed)
+    - [Check That The Configured Private Repo Has The Branches Of All The Controllers](#check-that-the-configured-private-repo-has-the-branches-of-all-the-controllers)
+    - [Check The Compute Instance Created By The Machine Controller Manager](#check-the-compute-instance-created-by-the-machine-controller-manager)
+  - [Cleanup The Sample Headless Cluster](#cleanup-the-sample-headless-cluster)
+    - [Delete The Compute Instance Created By The Machine Controller Manager](#delete-the-compute-instance-created-by-the-machine-controller-manager)
 - [Next](#next)
-- [What Else](#what-else)
-
+  - [Alternatives to Git](#alternatives-to-git)
 
 ## Why
 
@@ -278,19 +293,176 @@ as a headless control-plane component to provision and manage the headless nodes
 Such a transition is eased considerably by the fact that merely pointing the `blue` headless cluster's control-plane to the same upstream Git repo solves the data migration problem.
 Leader-election or other such mechanisms would be required to aviod/mitigate two replicas of the `blue` headless cluster (one each in the `bootstrap` and `green` clusters) racing with each other.
 
+## Take It For A Spin
+
+### Pre-requisites
+
+1. A GitHub account with a [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with permission to create private repos and push and pull from them.
+2. A GCP accound with a [service account](https://cloud.google.com/iam/docs/service-account-overview) with access to create compute instances.
+3. A Kubernetes cluster with access to GitHub and GCP API endpoints.
+
+### Prepare secrets
+
+#### git-cred
+
+The secret `git-cred` should contain the personal access token details for access to the GitHub account to create a private repo and push and pull from it.
+The secret should have the following information.
+
+- `data.url`: The base URL for the GitHub account.
+- `data.username`: The username for the GitHub account.
+- `data.password`: The GitHub personal access token.
+
+#### gcp-cred
+
+The secret `gcp-cred` should contain the service token JSON for the GCP account where the compute instance will be created by MCM of the headless cluster.
+The secret should have the following information.
+
+- `data.serviceAccountJSON`: The GCP service account JSON with access to create compute instances.
+- `data.userData`: The user data to be passed in the GCP compute instance creation request.
+Ideally, this should be configured to setup the `kubelet` in the compute instance to join the headless cluster as a `node`.
+The work for such configuration is pending.
+For now, an empty user data such as `#cloud-config` would do.
+With this, the compute instance will be provisioned by it will not join the headless cluster as a `node`.
+
+#### gar-cred
+
+The container images for the `trishanku` components such as [`gitcd`](../gitcd/), [`heaven`](.)
+(or for that matter the gardener components like [`gardener/machine-controller-manager`](https://github.com/gardener/machine-controller-manager)
+and [`gardener/machine-controller-manager-provider-gcp`](https://github.com/gardener/machine-controller-manager-provider-gcp))
+are not available publicly.
+So, the images might have to be built from source and pushed a suitable container image registry by customizing the image variable specified in the correspnding `Makefile` in these projects before running `make docker-build` or `make docker-image` before pushing the docker image.
+
+If the selected container image registry requires access permission to pull images from, such access permissions need to be specified in a secret `gar-cred`
+so that the sidecar containers created for the `trishankuheavens` can pull these images.
+
+### Customise
+
+The sample YAML files create a [private GitHub repo](config/samples) `sample-k8s` under the GitHub organisation `trishanku-org`.
+If this is to be customised, the changes have to be done consistently in all the YAML files.
+
+#### Warning
+
+Since, all the controllers in the headless cluster, including the `gardener/machine-controller-manager` controllers,
+use the above-mentioned private repo as the co-ordination point for their individual Git repos,
+the secret `gcp-cred` gets copied into this private repo.
+So, it is important to keep even a customised repo as a private repo (and to delete the repo after this exercise) to avoid leaking GCP credentials.
+
+### Create A Sample Headless Cluster
+
+#### Run The Trishanku Heaven Controller
+
+Please make sure to clone the trishanku `heaven`(.) repo and to `cd` into the cloned directory before proceeding.
+Also, please make sure that the `KUBECONFIG` is pointing to the chosen Kubernetes cluster.
+
+```sh
+make run &
+```
+
+Alternatively, please run the trishanku `heaven` as a controller in a pod in the cluster with the [required permissions](config/rbac/role.yaml).
+
+#### Apply The Sample Headless Cluster Configuration
+
+```sh
+$ kubectl apply -f config/samples
+automatedmerge.controllers.trishanku.org.trishanku.org/sample-k8s-kcm created
+githubrepository.controllers.trishanku.org.trishanku.org/sample-k8s created
+trishankuheaven.controllers.trishanku.org.trishanku.org/sample-k8s created
+trishankuheaven.controllers.trishanku.org.trishanku.org/sample-k8s-kcm created
+trishankuheaven.controllers.trishanku.org.trishanku.org/sample-k8s-kube-scheduler created
+configmap/sample-k8s-kube-scheduler created
+serviceaccount/sample-k8s-mcm-crds created
+role.rbac.authorization.k8s.io/sample-k8s-mcm-crds created
+rolebinding.rbac.authorization.k8s.io/sample-k8s-mcm-crds created
+job.batch/sample-k8s-mcm-crds created
+configmap/sample-k8s-mcm-crds-entrypoint created
+trishankuheaven.controllers.trishanku.org.trishanku.org/sample-k8s-mcm created
+trishankuheaven.controllers.trishanku.org.trishanku.org/sample-k8s-mc created
+```
+
+#### Wait Until All The Pods Are Running Or Completed
+
+```sh
+$ wait kubectl get pods
+NAME                                               READY   STATUS      RESTARTS   AGE
+sample-k8s-kcm-automerge-554c8fff8f-8kgwv          1/1     Running     0          2m9s
+sample-k8s-kcm-heaven-7d4f66667f-w9x79             4/4     Running     0          2m15s
+sample-k8s-kube-scheduler-heaven-b6459f8d7-jlbfc   4/4     Running     0          32s
+sample-k8s-mc-heaven-7ffc78d454-lr7q2              4/4     Running     0          2m15s
+sample-k8s-mcm-crds-swl6m                          0/1     Completed   2          2m16s
+sample-k8s-mcm-heaven-7499c45fff-mng2x             4/4     Running     0          2m15s
+```
+
+This might take a couple of minutes.
+
+#### Check That The Configured Private Repo Has The Branches Of All The Controllers
+
+![Sample Headless Cluster Controller Branches](docs/images/sample-k8s-branches.png)
+
+#### Check The Compute Instance Created By The Machine Controller Manager
+
+```sh
+# Please make sure to authenticate gcloud to the right GCP account and to customise the region and zone correctly.
+$ gcloud compute instances list
+NAME          ZONE           MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP    STATUS
+test-machine  asia-south1-a  n1-standard-1               10.160.0.6   34.93.143.120  RUNNING
+```
+
+### Cleanup The Sample Headless Cluster
+
+```sh
+$ kubectl delete -f config/samples
+automatedmerge.controllers.trishanku.org.trishanku.org "sample-k8s-kcm" deleted
+githubrepository.controllers.trishanku.org.trishanku.org "sample-k8s" deleted
+trishankuheaven.controllers.trishanku.org.trishanku.org "sample-k8s" deleted
+trishankuheaven.controllers.trishanku.org.trishanku.org "sample-k8s-kcm" deleted
+trishankuheaven.controllers.trishanku.org.trishanku.org "sample-k8s-kube-scheduler" deleted
+configmap "sample-k8s-kube-scheduler" deleted
+serviceaccount "sample-k8s-mcm-crds" deleted
+role.rbac.authorization.k8s.io "sample-k8s-mcm-crds" deleted
+rolebinding.rbac.authorization.k8s.io "sample-k8s-mcm-crds" deleted
+job.batch "sample-k8s-mcm-crds" deleted
+configmap "sample-k8s-mcm-crds-entrypoint" deleted
+trishankuheaven.controllers.trishanku.org.trishanku.org "sample-k8s-mcm" deleted
+trishankuheaven.controllers.trishanku.org.trishanku.org "sample-k8s-mc" deleted
+```
+
+#### Delete The Compute Instance Created By The Machine Controller Manager
+
+The steps for deprovisioning of the compute instance created by the `gardener/machine-controller-manager` is yet to be updated in this documentation.
+For the time-being, please deprovision the compute instance via `gcloud` command.
+
+```sh
+# Please make sure to authenticate gcloud to the right GCP account and to customise the region and zone correctly.
+$ gcloud compute instances delete test-machine --zone asia-south1-a
+The following instances will be deleted. Any attached disks configured to be auto-deleted will be deleted unless they are
+attached to any other instances or the `--keep-disks` flag is given and specifies them for keeping. Deleting a disk is
+irreversible and any data on the disk will be lost.
+ - [test-machine] in [asia-south1-a]
+
+Do you want to continue (Y/n)?  Y
+
+Deleted [https://www.googleapis.com/compute/v1/projects/trishanku/zones/asia-south1-a/instances/test-machine].
+```
+
 ## Next
 
 This project is a proof of concept.
 As [noted above](#note-2), the sample setup sets up a headless Kubernetes cluster with the `kube-controller-manager`, the `kube-scheduler` and the controllers of the
 `gardener/machine-controller-manager` to run independently while co-ordinating with one another only by communicating changes via Git.
-Work is pending to configure a `TrishankuHeaven` for the `kubelet` inside the machines provisioned by the `gardener/machine-controller-manager` to help it join and participate in the headless cluster as a `node`.
-Also, a lot more work is required to make it efficient and productive.
+
+- Work is pending to configure a `TrishankuHeaven` for the `kubelet` inside the machines provisioned by the `gardener/machine-controller-manager` to help it join and participate in the headless cluster as a `node`.
+- Also, a lot more work is required to make it efficient and productive.
+
+The [above sample](#take-it-for-a-spin) uses a private GitHub repo as a point of co-ordination amongst the controllers of a headless cluster.
+
+- It is possible to do such a co-ordination with a locally accessible Git repo but working is pending to document this.
+- Work is also pending to support other Git-hosting platforms.
 
 There are different possible applications for such an approach of
 loosely co-ordinating independent controllers.
 Please reach out at [@AmshumanKR](https://twitter.com/AmshumanKR) (Twitter) or here in the GitHub [issues](https://github.com/trishanku-org/heaven/issues) if interested in collaborating.
 
-## What Else
+### Alternatives to Git
 
 Git was picked for this project because it enables unlimited forking and multi-way merging with unconstrained conflict resolution.
 But the inefficiency of using Git as a database is obvious
