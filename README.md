@@ -107,7 +107,7 @@ but not without the existing changes from the fork being
 
 #### Moral of the story
 
-Sometimes it is necessary to fork the heavens.
+Forking the heavens is not beyond the realms of possibility.
 
 ## What
 
