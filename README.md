@@ -111,8 +111,8 @@ Forking the heavens is not beyond the realms of possibility.
 
 ## What
 
-The problem of eventually consistency for a general class of specialist human operators, namely, computer programmers,
-has been solved quite interestingly and successfully by the [`Git`](https://git-scm.com).
+The problem of eventual consistency for a general class of specialist human operators, namely, computer programmers,
+has been solved quite interestingly and successfully by [`Git`](https://git-scm.com).
 Git enables individual computer programmers to work independently (on their own local [clones](https://git-scm.com/docs/git-clone)) at their own pace
 and coordinate amongst one another (by [pulling](https://git-scm.com/docs/git-pull) relevant changes) as and when required in a way they find convenient and productive.
 
@@ -121,7 +121,7 @@ and coordinate amongst one another (by [pulling](https://git-scm.com/docs/git-pu
 ![Programmers coordinating using Git](docs/images/png/programmers.png)
 
 Git does not mandate any particular structure for the coordination-flow; any network of coordination with any degree of simplicity or complexity is supported.
-This enables not only groups of programmers to experiment with different coordination-flows and home in the flow that works best for them
+This enables not only groups of programmers to experiment with different coordination-flows and home in on the flow that works best for them,
 but also for a suitable modularity to emerge for the solution to the problem they are trying to solve.
 
 ### Kubernetes Controllers coordinating using Git
@@ -168,11 +168,11 @@ The [`gitcd pull`](https://github.com/trishanku-org/gitcd/blob/main/cmd/pull.go)
 
 ### TrishankuHeaven
 
-The `TrishankuHeaven` controller helps setup a `TrishankuHeaven`
+The `TrishankuHeaven` controller helps declaratively setup a `TrishankuHeaven`
 in a Kubernetes [`Pod`](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/),
-i.e., coordinate using Git like human computer programmers instead of a centralised Kubernetes control-plane,
-for existing Kubernetes controllers with full binary-compatibility declaratively.
-The host for the `pod` could be any Kubernetes cluster that the required
+i.e., coordination using Git like human computer programmers instead of a centralised Kubernetes control-plane,
+for existing Kubernetes controllers with full binary-compatibility.
+The host for the `pod` could be any Kubernetes cluster that has the required
 network connectivity that the target controller (and possibly the Git-based coordination) requires.
 
 The [`TrishankuHeaven`](api/v1alpha1/trishankuheaven_types.go) is a Kubernetes [custom resource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/),
@@ -214,7 +214,7 @@ In this scenario, a couple of additional init-containers are used to setup the c
 from the `controller` data and metadata branches into the `main` data and metadata branches.
 
 An additional container `gitcd-pr` is also used to continually fetch and merge changes from the `controller` data and metadata branches into the `main` data and metadata branches and push to the upstream Git repository.
-The `gitcd` container already fetches and merge the changes continually from the `main` data and metadata branches into the `controller` data and metadata branches and push to the upstream Git repository.
+The `gitcd` container already fetches and merges the changes continually from the `main` data and metadata branches into the `controller` data and metadata branches and push to the upstream Git repository.
 This completes the circle of coordination.
 The `gitcd` and `gitcd-pr` controllers use their own clones of the upstream Git repository to avoid the synchronisation burden between them which would be required if they shared the same Git repository.
 
@@ -222,14 +222,14 @@ The `gitcd` and `gitcd-pr` controllers use their own clones of the upstream Git 
 
 The additional container `gitcd-pr` used to automate the merging of changes from the controller into the upstream repository has now been replaced with
 the [`AutomatedMerge`](api/v1alpha1/automatedmerge_types.go) resource which generates a separate `Deployment` for this purpose.
-This redesign was to help coordinate changes flowing into any upstream branch which might become a bottleneck.
-It also provides maximal flexibility in designing the change-flow between the controllers
-(from a central upstream branch to completely decentralised branches pulling changes from each other).
+This redesign is to help coordinate changes flowing into any upstream branch which might become a bottleneck.
+It also provides maximal flexibility in designing the network of coordination-flow between the controllers
+(from a central upstream branch to completely decentralised branches pulling changes from one another).
 
 #### Headless Kubernetes Cluster
 
 This approach for coordinating Kuberenetes controllers without the need for a central control-plane creates the possibility of a fully decentralised Kubernetes cluster where each component/controller works independently
-while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges when without a central control-plane.
+while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges even without a central control-plane.
 Perhaps such a fully decentralised Kubernetes cluster could be called a *headless* Kubernetes cluster.
 
 ![Headless Kubernetes Cluster ](docs/images/svg/headless-kubernetes/11.svg)
@@ -241,9 +241,12 @@ A simplified sequence diagram of the same steps can be seen below.
 
 ##### Note
 
+- As already [noted above](#note), the part about mergeing and pushing controller branches into upstream coordination branch is now
+redisigned to be managed via the `AutoamtedMerge` resource which maintains a dedicated `Deployment` resource for this purpose.
+
 - The above setup assumes the network connectivity between the headless control-plane and the headless worker nodes if it is required.
 Ideally, each the headless component (control-plane and worker nodes) needs network access only to the upstream Git repository
-apart from what it needs to perform its duties normally.
+apart from what it needs to perform its normal duties.
 
 - The above setup leaves out the details of setting up the headeless virtual machine and making sure that it joins as a node of the headless cluster.
 Ideally, this should also be automated declaratively in a control-loop along the lines of [gardener/machine-controller-manager](https://github.com/gardener/machine-controller-manager),
@@ -254,7 +257,7 @@ which also can be hosted as another headless control-plane controller in the boo
 The above example used a host Kubernetes cluster to host the headless control-plane for the headless cluster.
 Alternatively, two headless clusters could be configured to host the
 headless control-planes of each other
-(or three headless clusters hosting the control-planes of one another as seen in [this proposal](https://github.com/gardener/gardener/issues/233)).
+(or three headless clusters hosting the control-planes of one another in closed sequence as seen in [this proposal](https://github.com/gardener/gardener/issues/233)).
 The high level steps for this can be as below.
 
 1. Setup a `blue` headless cluster using a `bootstrap` Kubernetes cluster to host its headless control-plane.
@@ -458,6 +461,13 @@ The [above sample](#take-it-for-a-spin) uses a private GitHub repo as a point of
 
 - It is possible to do such a coordination with a locally accessible Git repo but working is pending to document this.
 - Work is also pending to support other Git-hosting platforms.
+
+The `kube-apiserver` currently stores resources defined by
+[`CustomResourceDefinition`](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/) as single-line JSON string in the storage.
+This could be problem for the normal merge-conflict resolution mechanism of Git which are designed to detect conflict at
+the granularity of lines and not in individual fields of unformatted deeply structured text like JSON.
+
+- Work is pending to support automation of resolving merge-conflict in such cases optimally by enabling JSON-aware conflict detection and resolution.
 
 There are different possible applications for such an approach of
 loosely coordinating independent controllers.
