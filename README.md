@@ -254,7 +254,7 @@ which also can be hosted as another headless control-plane controller in the boo
 The above example used a host Kubernetes cluster to host the headless control-plane for the headless cluster.
 Alternatively, two headless clusters could be configured to host the
 headless control-planes of each other
-(or three headless clusters hosting the control-planes of one another as seen in [this proposa](https://github.com/gardener/gardener/issues/233)).
+(or three headless clusters hosting the control-planes of one another as seen in [this proposal](https://github.com/gardener/gardener/issues/233)).
 The high level steps for this can be as below.
 
 1. Setup a `blue` headless cluster using a `bootstrap` Kubernetes cluster to host its headless control-plane.
