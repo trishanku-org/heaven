@@ -177,7 +177,7 @@ network connectivity that the target controller (and possibly the Git-based coor
 
 The [`TrishankuHeaven`](api/v1alpha1/trishankuheaven_types.go) is a Kubernetes [custom resource](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/),
 which captures, in its specification section,
-the `PodTemplate` for the Kubernetes controller along with the required Git configuration to be used for co-ordination.
+the `PodTemplate` for the Kubernetes controller along with the required Git configuration to be used for coordination.
 The `TrishankuHeaven` [controller](https://github.com/trishanku-org/heaven/blob/main/controllers/trishankuheaven_controller.go)
 then acts on this object to create and maintain a `Deployment` for the controller with the specified `PodTemplate`,
 but enhanced with additional containers (initial and normal) to act as a binary-compatible triśaṅku heaven,
@@ -222,7 +222,7 @@ The `gitcd` and `gitcd-pr` controllers use their own clones of the upstream Git 
 
 The additional container `gitcd-pr` used to automate the merging of changes from the controller into the upstream repository has now been replaced with
 the [`AutomatedMerge`](api/v1alpha1/automatedmerge_types.go) resource which generates a separate `Deployment` for this purpose.
-This redesign was to help co-ordinate changes flowing into any upstream branch which might become a bottleneck.
+This redesign was to help coordinate changes flowing into any upstream branch which might become a bottleneck.
 It also provides maximal flexibility in designing the change-flow between the controllers
 (from a central upstream branch to completely decentralised branches pulling changes from each other).
 
@@ -344,7 +344,7 @@ If this is to be customised, the changes have to be done consistently in all the
 #### Warning
 
 Since, all the controllers in the headless cluster, including the `gardener/machine-controller-manager` controllers,
-use the above-mentioned private repo as the co-ordination point for their individual Git repos,
+use the above-mentioned private repo as the coordination point for their individual Git repos,
 the secret `gcp-cred` gets copied into this private repo.
 So, it is important to keep even a customised repo as a private repo (and to delete the repo after this exercise) to avoid leaking GCP credentials.
 
@@ -449,18 +449,18 @@ Deleted [https://www.googleapis.com/compute/v1/projects/trishanku/zones/asia-sou
 
 This project is a proof of concept.
 As [noted above](#note-2), the sample setup sets up a headless Kubernetes cluster with the `kube-controller-manager`, the `kube-scheduler` and the controllers of the
-`gardener/machine-controller-manager` to run independently while co-ordinating with one another only by communicating changes via Git.
+`gardener/machine-controller-manager` to run independently while coordinating with one another only by communicating changes via Git.
 
 - Work is pending to configure a `TrishankuHeaven` for the `kubelet` inside the machines provisioned by the `gardener/machine-controller-manager` to help it join and participate in the headless cluster as a `node`.
 - Also, a lot more work is required to make it efficient and productive.
 
-The [above sample](#take-it-for-a-spin) uses a private GitHub repo as a point of co-ordination amongst the controllers of a headless cluster.
+The [above sample](#take-it-for-a-spin) uses a private GitHub repo as a point of coordination amongst the controllers of a headless cluster.
 
-- It is possible to do such a co-ordination with a locally accessible Git repo but working is pending to document this.
+- It is possible to do such a coordination with a locally accessible Git repo but working is pending to document this.
 - Work is also pending to support other Git-hosting platforms.
 
 There are different possible applications for such an approach of
-loosely co-ordinating independent controllers.
+loosely coordinating independent controllers.
 Please reach out at [@AmshumanKR](https://twitter.com/AmshumanKR) (Twitter) or here in the GitHub [issues](https://github.com/trishanku-org/heaven/issues) if interested in collaborating.
 
 ### Alternatives to Git
