@@ -44,18 +44,17 @@ TrishankuHeaven: {
         # Certificates for the sidecar trishanku  Kubernetes control-plane.
         # ...
       gitcd:
-        remoteRepo: # ...
-        branches:
-          local:
+        git:
+          branches:
             data: controller/data
             metadata: controller/metadata
-          remote:
-            data: main/data
-            metadata: main/metadata
+          remotes:
+          - name: origin
+            repo: # ...
+            branches:
+              data: main/data
+              metadata: main/metadata
         pull:
-          # ...
-          tickerDuration: # ...
-        pullRequest:
           # ...
           tickerDuration: # ...
       app:
@@ -75,22 +74,51 @@ TrishankuHeaven: {
   |
 }
 
+AutomatedMerge: {
+  class: crd
+  style: {multiple: true}
+
+  yaml: |yaml
+    apiVersion: controllers.trishanku.org.trishanku.org/v1alpha1
+    kind: TrishankuHeaven
+    metadata:
+      name: controller
+    spec:
+      gitcd:
+        git:
+          branches:
+            data: main/data
+            metadata: main/metadata
+          remotes:
+          - name: origin
+            repo: # ...
+            branches:
+              data: controller/data
+              metadata: controller/metadata
+        pull:
+          # ...
+          tickerDuration: # ...
+      app:
+        replicas: 1
+        # ...
+  |
+}
+
 c: TrishankuHeaven Controller {class: kubernetes}
+amc: AutomatedMerge Controller {class: kubernetes}
 
 k: {
   label: ""
   class: dashed_package
   style: {multiple: true}
 
-  d: Deployment: {
+  d: TrishankuHeaven Deployment {
     class: deploy
 
     ic: InitContainers {
       shape: queue
       git-pre: {class: git}
       gitcd-init: {class: git}
-      git-post: {class: git}
-      git-pre-pr: {class: git}
       controller-init
     }
 
@@ -100,16 +128,6 @@ k: {
 
       gitcd: {
         class: etcd
-
-        git: {
-          label: ""
-          shape: image
-          class: git
-        }
-      }
-
-      gitcd-pr: {
-        class: git
 
         git: {
           label: ""
@@ -144,6 +162,48 @@ k: {
           metadata: {class: branch}
         }
       }
+    }
+
+    ic.git-pre <-> v.git: init
+    ic.gitcd-init <-> v.git: init
+
+    c.gitcd <-> v.git
+  }
+
+  Certificates: {
+    icon: ../png/secret-128.png
+    style: {multiple: true}
+  }
+
+  Entrypoints: {
+    icon: ../png/cm-128.png
+  }
+
+  Certificates -> d: used by
+  Entrypoints -> d: used by
+
+  amd: AutomatedMerge Deployment {
+    class: deploy
+
+    ic: InitContainers {
+      shape: queue
+      git-pre: {class: git}
+      gitcd-init: {class: git}
+    }
+
+    c: Containers {
+      gitcd-pr: gitcd pull {
+        class: git
+
+        git: {
+          label: ""
+          shape: image
+          class: git
+        }
+      }
+    }
+
+    v: Volumes {
       git-pr: {
         shape: cylinder
         icon: ../png/Git-Icon-1788C.png
@@ -164,24 +224,11 @@ k: {
       }
     }
 
-    ic.git-pre <-> v.git: init
-    ic.gitcd-init <-> v.git: init
+    ic.git-pre <-> v.git-pr: init
+    ic.gitcd-init <-> v.git-pr: init
 
-    c.gitcd <-> v.git
     c.gitcd-pr <-> v.git-pr
   }
-
-  Certificates: {
-    icon: ../png/secret-128.png
-    style: {multiple: true}
-  }
-
-  Entrypoints: {
-    icon: ../png/cm-128.png
-  }
-
-  Certificates -> d: used by
-  Entrypoints -> d: used by
 }
 
 upstream: {
@@ -204,16 +251,18 @@ upstream: {
 }
 
 k.d.ic.git-pre -> upstream: fetch
-k.d.ic.git-post -> upstream: push
-k.d.ic.git-pre-pr -> upstream: fetch
+k.amd.ic.git-pre -> upstream: fetch
 
 k.d.c.gitcd -> upstream.main: fetch
 k.d.c.gitcd -> upstream.controller: push
-k.d.c.gitcd-pr -> upstream.controller: fetch
-k.d.c.gitcd-pr -> upstream.main: push
+k.amd.c.gitcd-pr -> upstream.controller: fetch
+k.amd.c.gitcd-pr -> upstream.main: push
 
 TrishankuHeaven <-> c: reconciles
+AutomatedMerge <-> amc: reconciles
 
 c <-> k.d: reconciles
+amc <-> k.amd: reconciles
 c <-> k.Certificates: reconciles
 c <-> k.Entrypoints: reconciles
+amc <-> k.Entrypoints: reconciles

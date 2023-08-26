@@ -181,10 +181,7 @@ const (
 	CONTAINER_ETCD       = "events-etcd"
 	CONTAINER_GIT_PRE    = "git-pre"
 	CONTAINER_GITCD_INIT = "gitcd-init"
-	CONTAINER_GIT_POST   = "git-post"
-	CONTAINER_GIT_PRE_PR = "git-pre-pr"
 	CONTAINER_GITCD      = "gitcd"
-	CONTAINER_GITCD_PR   = "gitcd-pr"
 	CONTAINER_APISERVER  = "apiserver"
 
 	ENTRYPOINT_GIT_PRE = "git-pre.sh"
