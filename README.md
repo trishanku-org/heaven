@@ -76,10 +76,18 @@ The ways human operators act and coordinate amongst one another in the real worl
 
 ![Coordination amongst Kubernetes controllers](docs/images/png/controllers.png)
 
-The way Kubernetes controllers act could be eventually consistent but for coordinating amongst one another there is a central system, namely, the `kube-apiserver`
+The way Kubernetes controllers act could be called eventually consistent in the sense that *it normalises the desired
+and the actual states of the system diverging and made to converge continually*.
+
+But it manages the consensus regarding the last seen desired and actual states in a central system, namely, the `kube-apiserver`.
 (or possibly some [extension server](https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/)).
 So, while the individual controllers may be eventually consistent, the coordination between them is
 [strongly consistent](https://en.wikipedia.org/wiki/Strong_consistency), or atleast rigidly structured.
+
+- With this centralised design for consensus, the individual controllers can at best idle around if they do not have access to
+the `kube-apiserver`.
+- Also, because of this centralisation of consensus, any caching done by the controllers will have to be a write-through cache.
+I.e., the caches can be *stale* (do not have the latest data from `kube-apiserver`) but not *dirty* (have changes not yet sent to the `kube-apiserver`).
 
 It is interesting to think about ways to eliminate this remaining difference between the way humans operators and controllers coordinate, if only as a thought experiment.
 But it is quite likely that there are real-world scenarios that might benifit from an
@@ -124,9 +132,18 @@ and coordinate amongst one another (by [pulling](https://git-scm.com/docs/git-pu
 
 ![Programmers coordinating using Git](docs/images/png/programmers.png)
 
-Git does not mandate any particular structure for the coordination-flow; any network of coordination with any degree of simplicity or complexity is supported.
-This enables not only groups of programmers to experiment with different coordination-flows and home in on the flow that works best for them,
+Git does not mandate any particular structure for the coordination-flow or managing consensus; any network of coordination or consensus with any degree of simplicity or complexity is supported.
+This enables not only groups of programmers to experiment with different coordination-flows or consensus management and home in on the flow that works best for them,
 but also for a suitable modularity to emerge for the solution to the problem they are trying to solve.
+
+This treats the problem of consensus the same way the Kubernetes control-loop treats the problem of the desired and the actual state diverging.
+This is because *consensus also is a kind of state*.
+While the desired state of consensus may be that every part of the system sees the same consensus, the actual state might be that different parts of the system see different consensus at any given point in time
+and in the principle of control-loop, action is continually performed to converge the diverging consensus in the system.
+
+*This normalises the desired and the actual state (including the consensus) diverging and made to converge continually.*
+
+This maps closest to the way eventual consistency works in the real world.
 
 ### Kubernetes Controllers coordinating using Git
 
@@ -236,9 +253,9 @@ This approach for coordinating Kuberenetes controllers without the need for a ce
 while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges even without a central control-plane.
 Perhaps such a fully decentralised Kubernetes cluster could be called a *headless* Kubernetes cluster.
 
-![Headless Kubernetes Cluster ](docs/images/svg/headless-kubernetes/11.svg)
+![Headless Kubernetes Cluster ](docs/images/png/headless-kubernetes/11.png)
 
-The individual steps of setting up such a headless cluster can be seen [here](docs/images/svg/headless-kubernetes).
+The individual steps of setting up such a headless cluster can be seen [here](docs/images/png/headless-kubernetes).
 
 A simplified sequence diagram of the same steps can be seen below.
 ![Headless Kubernetes Cluster Sequence Diagram](docs/images/png/headless-sequence.png)

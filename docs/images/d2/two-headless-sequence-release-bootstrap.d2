@@ -8,14 +8,14 @@ setup: Setup {
 }
 
 host: Bootstrap Cluster {
-    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    icon: ../png/logo.png
     style: {fill: lightgoldenrodyellow}
 }
 
 setup.prepare -> host.prepare: Delete GitHubRepository Controller
 
 ghc: Bootstrap GitHubRespository Controller {
-    icon: ../png/github-mark.png
+    icon: ../png/png/logo.png
     style: {fill: lightgoldenrodyellow}
 }
 
@@ -24,7 +24,7 @@ host.prepare -> ghc: Reconcile
 setup.prepare -> host.prepare: Delete TrishankuHeaven Controller
 
 tc: Bootstrap TrishankuHeaven Controller {
-    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    icon: ../png/logo.png
     style: {fill: lightgoldenrodyellow}
 }
 

@@ -8,7 +8,7 @@ setup: Setup {
 }
 
 host: Green Cluster {
-    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    icon: ../png/logo.png
     style: {fill: palegreen}
 }
 
@@ -24,14 +24,14 @@ host.prepare -> ghc: Reconcile
 setup.prepare -> host.prepare: Apply TrishankuHeaven Controller
 
 tc: Green TrishankuHeaven Controller {
-    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    icon: ../png/logo.png
     style: {fill: palegreen}
 }
 
 host.prepare -> tc: Reconcile
 
 bootstrap: Bootstrap Cluster {
-    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    icon: ../png/logo.png
     style: {fill: lightgoldenrodyellow}
 }
 

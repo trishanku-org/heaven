@@ -8,7 +8,7 @@ setup: Setup {
 }
 
 host: Host Cluster {
-    icon: ../svg/Kubernetes_logo_without_workmark.svg
+    icon: ../png/logo.png
 }
 
 setup.prepare -> host.prepare: Apply GitHubRepository Controller
@@ -22,7 +22,7 @@ host.prepare -> ghc: Reconcile
 setup.prepare -> host.prepare: Apply TrishankuHeaven Controller
 
 tc: TrishankuHeaven Controller {
-   icon: ../svg/Kubernetes_logo_without_workmark.svg
+   icon: ../png/logo.png
 }
 
 host.prepare -> tc: Reconcile
