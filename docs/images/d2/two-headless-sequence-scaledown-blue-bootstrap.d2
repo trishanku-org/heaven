@@ -38,3 +38,19 @@ kcm: Blue kube-controller-manager {
 }
 
 host.c1 -> kcm.c1: Reconcile
+
+setup.c3 -> host.c3: Delete AutomatedMerge
+
+amc: Bootstrap AutomatedMerge Controller {
+    icon: ../png/logo.png
+    style: {fill: lightgoldenrodyellow}
+}
+
+amc.c1 -> host.c3: Reconcile
+
+am: Blue automated-merge {
+    icon: ../png/logo.png
+    style: {fill: aqua}
+}
+
+host.c3 -> am.c1: Reconcile

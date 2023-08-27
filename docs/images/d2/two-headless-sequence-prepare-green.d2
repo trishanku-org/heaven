@@ -30,6 +30,15 @@ tc: Green TrishankuHeaven Controller {
 
 host.prepare -> tc: Reconcile
 
+setup.prepare -> host.prepare: Apply AutomatedMerge Controller
+
+amc: Green AutomatedMerge Controller {
+    icon: ../png/logo.png
+    style: {fill: palegreen}
+}
+
+host.prepare -> amc: Reconcile
+
 bootstrap: Bootstrap Cluster {
     icon: ../png/logo.png
     style: {fill: lightgoldenrodyellow}

@@ -1,4 +1,4 @@
-# Trishanku - Fork the Heavens
+# Triśaṅku - Fork the Heavens
 
 ![Triśaṅku logo](docs/images/logo/simple-small.png)
 
@@ -8,7 +8,7 @@ with eventual consistency in every sense of the term.
 
 ## Content
 
-- [Trishanku - Fork the Heavens](#trishanku---fork-the-heavens)
+- [Triśaṅku - Fork the Heavens](#triśaṅku---fork-the-heavens)
 - [Content](#content)
 - [Why](#why)
   - [Human Interaction](#human-interaction)
@@ -26,11 +26,10 @@ with eventual consistency in every sense of the term.
   - [Gitcd](#gitcd)
   - [TrishankuHeaven](#trishankuheaven)
     - [Coordination using an upstream Git repository](#coordination-using-an-upstream-git-repository)
-      - [Note](#note)
     - [Headless Kubernetes Cluster](#headless-kubernetes-cluster)
-      - [Note](#note-1)
+      - [Note](#note)
     - [Two Headless Clusters](#two-headless-clusters)
-      - [Note](#note-2)
+      - [Note](#note-1)
 - [Take It For A Spin](#take-it-for-a-spin)
   - [Pre-requisites](#pre-requisites)
   - [Prepare secrets](#prepare-secrets)
@@ -119,7 +118,7 @@ but not without the existing changes from the fork being
 
 #### Moral of the story
 
-Forking the heavens is not beyond the realms of possibility.
+Even the consensus in the heavens was negotiated.
 
 ## What
 

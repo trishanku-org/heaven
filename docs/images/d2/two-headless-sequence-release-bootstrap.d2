@@ -15,7 +15,7 @@ host: Bootstrap Cluster {
 setup.prepare -> host.prepare: Delete GitHubRepository Controller
 
 ghc: Bootstrap GitHubRespository Controller {
-    icon: ../png/png/logo.png
+    icon: ../png/logo.png
     style: {fill: lightgoldenrodyellow}
 }
 
@@ -28,4 +28,13 @@ tc: Bootstrap TrishankuHeaven Controller {
     style: {fill: lightgoldenrodyellow}
 }
 
-host.prepare -> tc: Reconcile
+host.prepare -> amc: Reconcile
+
+setup.prepare -> host.prepare: Delete AutomatedMerge Controller
+
+amc: Bootstrap AutomatedMerge Controller {
+    icon: ../png/logo.png
+    style: {fill: lightgoldenrodyellow}
+}
+
+host.prepare -> amc: Reconcile

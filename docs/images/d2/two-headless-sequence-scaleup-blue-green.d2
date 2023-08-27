@@ -22,6 +22,11 @@ tc: Green TrishankuHeaven Controller {
     style: {fill: palegreen}
 }
 
+amc: Green AutomatedMerge Controller {
+    icon: ../png/logo.png
+    style: {fill: palegreen}
+}
+
 upstream: Blue Upstream GitHubRepository {
     icon: ../png/github-mark.png
     style: {fill: palegreen}
@@ -46,14 +51,6 @@ kcm.c1.c1 -> upstream.gh.c1: Merge and push kcm branch {
     style: {animated: true}
 }
 
-upstream.gh.c2 -> kcm.c1.c2: Pull kcm branch {
-    style: {animated: true}
-}
-
-kcm.c1.c2 -> upstream.gh.c2: Merge and push main branch {
-    style: {animated: true}
-}
-
 setup.c2 -> host.c2: Apply kube-scheduler TrishankuHeaven
 
 tc.c2 -> host.c2: Reconcile kube-scheduler secrets, configmaps and Deployment
@@ -65,18 +62,29 @@ scheduler: Blue kube-scheduler {
 
 host.c2 -> scheduler.c2: Reconcile
 
-upstream.gh.c3 -> scheduler.c2.c1: Pull main branch {
+upstream.gh.c2 -> scheduler.c2.c1: Pull main branch {
     style: {animated: true}
 }
 
-scheduler.c2.c1 -> upstream.gh.c3: Merge and push scheduler branch {
+scheduler.c2.c1 -> upstream.gh.c2: Merge and push scheduler branch {
     style: {animated: true}
 }
 
-upstream.gh.c4 -> scheduler.c2.c2: Pull scheduler branch {
+setup.c3 -> host.c3: Apply AutomatedMerge
+
+amc.c1 -> host.c3: Reconcile automated-merge configmaps and Deployment
+
+am: Blue automated-merge {
+    icon: ../png/logo.png
+    style: {fill: aqua}
+}
+
+host.c3 -> am.c1: Reconcile
+
+upstream.gh.c3 -> am.c1.c1: Pull kcm, scheduler and kubelet branches {
     style: {animated: true}
 }
 
-scheduler.c2.c2 -> upstream.gh.c4: Merge and push main branch {
+am.c1.c1 -> upstream.gh.c3: Merge and push main branch {
     style: {animated: true}
 }

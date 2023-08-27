@@ -4,6 +4,7 @@ direction: right
 classes: {
   controller: {
     icon: ../png/logo.png
+    label: ""
   }
 }
 
@@ -16,23 +17,33 @@ etcd: {
   icon: ../png/etcd-glyph-color.png
 }
 
-Controller 1: {
+c1: {
   class: controller
+
+  Controller 1: {
+    shape: text
+    style: {bold: true}
+  }
 
   cache: {shape: cylinder}
 }
-Controller 2: {
+c2: {
   class: controller
+
+  Controller 1: {
+    shape: text
+    style: {bold: true}
+  }
 
   cache: {shape: cylinder}
 }
 
-Controller 1 <-> kube-apiserver
-Controller 2 <-> kube-apiserver
+c1 <-> kube-apiserver
+c2 <-> kube-apiserver
 kube-apiserver <-> etcd
 
 note: |md
-  - Normalies the divergence between the desired and the actual state
+  - Normalises the divergence between the desired and the actual state
   - Controllers need access to the central consensus to act
   - Cache could be stale but never dirty
 | {near: bottom-center}
