@@ -118,7 +118,7 @@ but not without the existing changes from the fork being
 
 #### Moral of the story
 
-Even the consensus in the heavens was negotiated.
+Even the consensus in the heavens was negotiated!
 
 ## What
 
