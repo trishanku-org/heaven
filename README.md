@@ -186,8 +186,8 @@ Git for storage can enable binary-compatibility even with `kube-apiserver` while
 ### Gitcd
 
 [Gitcd](https://github.com/trishanku-org/gitcd) is an `etcd` shim that uses a Git repository for storage.
-The [`gitcd serve`](https://github.com/trishanku-org/gitcd/blob/main/cmd/serve.go) command serves a Git repository as an `etcd` shim (and continually pull from a remote branch if configured).
-The [`gitcd pull`](https://github.com/trishanku-org/gitcd/blob/main/cmd/pull.go) command continually merges the changes from a local branch to a remote branch.
+The [`gitcd serve`](https://github.com/trishanku-org/gitcd/blob/main/cmd/serve.go) command serves a Git repository as an `etcd` shim (and continually pull from an upstream branch if configured).
+The [`gitcd pull`](https://github.com/trishanku-org/gitcd/blob/main/cmd/pull.go) command continually merges the changes from a local branch to an upstream branch.
 
 ![Simplified scenario of controllers coordinating using Gitcd](/docs/images/png/controllers-with-gitcd-simplified.png)
 
