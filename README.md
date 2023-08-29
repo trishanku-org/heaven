@@ -245,7 +245,9 @@ This completes the circle of coordination.
 
 This approach for coordinating Kuberenetes controllers without the need for a central control-plane creates the possibility of a fully decentralised Kubernetes cluster where each component/controller works independently
 while coordinating amongst one another via Git in such a way that the phenomenon of a Kubernetes cluster emerges even without a central control-plane.
+That is, the phenomenon of Kubernetes cluster emerges from weakly interacting autonomous controllers.
 Perhaps such a fully decentralised Kubernetes cluster could be called a *headless* Kubernetes cluster.
+This could potentially form the basis for achieving the functionality of [automonous Kubernetes clusters](https://github.com/gardener/gardener/issues/2906).
 
 ![Headless Kubernetes Cluster ](docs/images/png/headless-kubernetes/11.png)
 
